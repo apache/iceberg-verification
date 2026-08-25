@@ -53,7 +53,7 @@ github:
     issues: false
     wiki: false
     projects: false
-  
+
   collaborators: # Note: the number of collaborators is limited to 10
     - nssalian
 
