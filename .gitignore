@@ -1,0 +1,6 @@
+# OS and editor artifacts
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
