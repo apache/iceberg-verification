@@ -54,6 +54,9 @@ github:
     wiki: false
     projects: false
 
+  collaborators: # Note: the number of collaborators is limited to 10
+    - nssalian
+
 notifications:
   commits:      commits@iceberg.apache.org
   issues:       issues@iceberg.apache.org
