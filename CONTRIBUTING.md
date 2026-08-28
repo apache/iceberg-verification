@@ -20,8 +20,8 @@
 # Contributing
 
 First, thank you for contributing to iceberg-verification! The goal of this
-document is to provide the guidelines you need to maintain a high quality
-verification framework for all Iceberg implementations.
+document is to provide the guidelines you need to maintain high quality
+conformance fixtures for all Iceberg implementations.
 
 [Iceberg](https://iceberg.apache.org/) is first and foremost a Spec, an
 agreement between different implementations on the structure and meaning of the
@@ -44,7 +44,7 @@ first, and commit the fixture once the community has agreed on the answer.
 ## Does your change belong here?
 
 This repository holds artifacts and the expected values the spec fixes for
-them. It holds no implementation code, and it verifies no behavior.
+them.
 
 If you have found a bug in one implementation, that belongs in that
 implementation's repository. Open a fixture pull request here when the spec
@@ -104,7 +104,7 @@ write a fixture, you should be able to answer:
    implement.
 4. Which boundary cases does the spec decide, and which does it leave open?
 
-That said, two things hold no matter which surface you are working on.
+That said, a few things hold no matter which surface you are working on.
 
 ### Bytes or decoded values?
 
@@ -124,11 +124,9 @@ When we compare decoded values, we still need to be careful about what we
 normalize away. Where the spec fixes a logical value but allows more than one
 encoding, we normalize to the value. For example, a `day` transform result is a
 `date`, and the spec requires readers to accept a plain `int` as the same date,
-so the two should compare equal
-([iceberg#16414](https://github.com/apache/iceberg/issues/16414)). Where the
-spec pins a physical type, we keep it. `equality_ids` elements are `int`, not
-`long`, so a decode that reads both as `1` would miss the defect
-([iceberg-go#880](https://github.com/apache/iceberg-go/pull/880)).
+so the two should compare equal. Where the spec pins a physical type, we keep
+it. `equality_ids` elements are `int`, not `long`, so a decode that reads both
+as `1` would miss the difference.
 
 So the only things we assert are the ones the spec pins. Where the spec allows
 more than one encoding of the same logical value, we normalize and there is no
@@ -140,8 +138,7 @@ see the next section.
 Often the most interesting case is one where the spec does not yet give a clear
 answer, and implementations have landed in different places. For example, the
 spec caps decimal precision at 38, but whether a reader must reject
-`decimal(40, 2)` is still being worked out in
-[iceberg#16798](https://github.com/apache/iceberg/pull/16798).
+`decimal(40, 2)` is not settled.
 
 We do not want to leave these out, and we do not want to invent an answer for
 them either. Instead we commit the case as an open case. The input is pinned,
@@ -174,6 +171,34 @@ problem and follow them where it fits. Once a convention has proven consistent
 across surfaces, we can promote it into this document as a repository-wide
 rule.
 
+#### If your expected values are JSON
+
+- **Record the type wherever the spec pins one.** JSON has a single number
+  type, so `[1]` reads the same whether an implementation decoded an `int` or
+  a `long`. `equality_ids` elements are `int`, and an expected value that
+  recorded only the number would not catch an implementation that decoded them
+  as `long`.
+- **Write 64-bit integers as strings.** Most JSON parsers read numbers as
+  doubles, which are exact only up to 2^53. A `long` value of
+  `3055729675574597004` comes back as `3055729675574597120` after such a parse,
+  with no error raised. Do this for every field the spec types as 64-bit,
+  whatever the value happens to be, so that a field is not a number in one case
+  and a string in another.
+- **Write binary as uppercase hex.** JSON has no binary type. An array of
+  integers diverges immediately, because languages disagree on whether a byte
+  is signed. A Java `byte` is signed and writes `-1` where Go and Python write
+  `255`, and base64 has more than one valid encoding of the same bytes.
+- **Write `null` out rather than leaving the field absent**, so that a reader
+  can tell a value that decoded to null from a field the assertion does not
+  cover.
+
+Override any of these where they do not fit your surface, and say why in its
+`README.md`.
+
+Some values need more than these conventions. For example, the unscaled value
+of a `decimal(38, 10)` does not fit in 64 bits at all, so a surface that covers
+one will need to say how it writes it.
+
 ## What we expect of a fixture
 
 - **Derive it from the spec, do not copy it from an implementation.** The
@@ -202,7 +227,7 @@ rule.
    which implementations you checked it against, and whether the case is an
    addition or a correction.
 
-A new surface additionally needs a `README.md` defining its assertion, the
+A new surface additionally needs a `README.md` defining its assertion and the
 shape of its inputs and expected values.
 
 ## License headers
