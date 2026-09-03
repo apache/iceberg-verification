@@ -1,0 +1,6 @@
+# Pin the runner-dir toolchain to current stable. iceberg-rust main tracks a
+# recent MSRV (it required rustc 1.95 as of iceberg 0.10.0), so the runner must
+# build with a stable new enough for whatever main currently requires. rustup
+# auto-installs this channel on first cargo invocation in this directory.
+[toolchain]
+channel = "stable"

@@ -1,0 +1,72 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Push-model conformance: the Java runner against the released iceberg-api jar
+# (version in build.gradle). One implementation per workflow, isolated from the
+# others. dev/run-local.sh runs the same runner against apache/main.
+name: "Conformance (Java)"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  conformance-java:
+    name: iceberg-java type conformance
+    runs-on: ubuntu-24.04
+    # Non-blocking: report a divergence, do not fail this repo's CI.
+    continue-on-error: true
+    steps:
+    - name: Checkout fixtures
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Install Java
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      with:
+        distribution: zulu
+        java-version: '17'
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+    - name: Run type conformance
+      id: run
+      working-directory: runners/java
+      # installDist then run the launcher directly so the runner's own exit code
+      # (0 PASS / 1 FAIL / 2 ERROR) survives; `gradlew run` collapses 1 and 2.
+      run: |
+        set +e
+        ./gradlew installDist --quiet || { echo "code=2" >> "$GITHUB_OUTPUT"; exit 2; }
+        build/install/conformance-java/bin/conformance-java 2>&1 | tee "$GITHUB_WORKSPACE/runner-output.txt"
+        code=${PIPESTATUS[0]}
+        echo "code=$code" >> "$GITHUB_OUTPUT"
+        exit "$code"
+    - name: Report results (step summary + annotations)
+      if: always()
+      run: >
+        bash "$GITHUB_WORKSPACE/dev/ci-report.sh"
+        iceberg-java "$GITHUB_WORKSPACE/runner-output.txt"
+        release "${{ steps.run.outputs.code }}"
+        iceberg-api:1.11.0

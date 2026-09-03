@@ -1,0 +1,73 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Push-model conformance: the Rust runner against the latest released iceberg
+# crate (the version in runners/rust/Cargo.toml). One implementation per
+# workflow, isolated from the others. dev/run-local.sh runs it against apache/main.
+name: "Conformance (Rust)"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  conformance-rust:
+    name: iceberg-rust type conformance
+    runs-on: ubuntu-24.04
+    # Non-blocking: report a divergence, do not fail this repo's CI.
+    continue-on-error: true
+    steps:
+    - name: Checkout fixtures
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Setup Rust toolchain
+      working-directory: runners/rust
+      # rust-toolchain.toml (channel = stable) is the source of truth.
+      run: rustup show && rustup update stable
+    - name: Cache Rust artifacts
+      uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+      with:
+        workspaces: runners/rust
+    - name: Run type conformance
+      id: run
+      working-directory: runners/rust
+      # Build separately so a compile failure is ERROR (exit 2), not a
+      # conformance FAIL (exit 1). cargo resolves the released iceberg crate.
+      run: |
+        set +e
+        cargo build --quiet || { echo "code=2" >> "$GITHUB_OUTPUT"; exit 2; }
+        cargo run --quiet 2>&1 | tee "$GITHUB_WORKSPACE/runner-output.txt"
+        code=${PIPESTATUS[0]}
+        echo "code=$code" >> "$GITHUB_OUTPUT"
+        exit "$code"
+    - name: Report results (step summary + annotations)
+      if: always()
+      run: >
+        bash "$GITHUB_WORKSPACE/dev/ci-report.sh"
+        iceberg-rust "$GITHUB_WORKSPACE/runner-output.txt"
+        release "${{ steps.run.outputs.code }}"
+        iceberg@0.10.1
