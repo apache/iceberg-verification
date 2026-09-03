@@ -75,7 +75,7 @@ dimension, it is a second surface.
 
 A subdirectory is the unit of subscription. It exists so that a consumer can run
 one directory to answer one conformance question, for example whether its
-implementation supports `geometry` type strings, and name that directory in its
+implementation supports `variant` columns, and name that directory in its
 own configuration rather than filtering cases at runtime. Taking some
 subdirectories of a surface and not others is normal. Organize them so that the
 choice is expressible by path.
@@ -258,8 +258,10 @@ to you, but it has to cover:
 - Each subdirectory, what it covers, and whether a consumer can subscribe to it
   on its own.
 - The shape of a case, and how to read its expected values.
-- The consumer loop, as language-neutral pseudocode. It has to settle the
-  dispatch on an open case, the comparison rule, and how a failure is labeled.
+- The consumer loop, written so that two implementers cannot read it two ways.
+  It has to settle the comparison rule, how a failure is labeled, and the
+  dispatch on an open case where the surface has any. Pseudocode is one way to do
+  that and prose is another.
 
 ## License headers
 
