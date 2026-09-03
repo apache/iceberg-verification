@@ -37,9 +37,11 @@ expectations can be used to verify implementations across languages and
 platforms.
 
 One thing to be clear about up front: we surface ambiguity here, we do not
-settle it here. When a case has no clear answer in the spec, take it to
-[dev@iceberg.apache.org](https://lists.apache.org/list.html?dev@iceberg.apache.org)
-first, and commit the fixture once the community has agreed on the answer.
+settle it here. When a case has no clear answer in the spec, raise it on
+[dev@iceberg.apache.org](https://lists.apache.org/list.html?dev@iceberg.apache.org),
+and commit the case in the meantime as an open case with no expected value. See
+[Cases the spec has not settled](#cases-the-spec-has-not-settled). Committing it
+is often what gives the discussion something specific to point at.
 
 ## Does your change belong here?
 
@@ -62,7 +64,21 @@ we are trying to verify when we introduce a new test surface.
 A test surface is one spec behavior verified by one assertion. Each surface
 directory holds its input artifacts, the expected values co-located with them,
 and a `README.md` stating that assertion. Surfaces are grouped by the spec they
-cover, and test surfaces often map to specs.
+cover, and test surfaces often map to specs. Co-located can mean an
+expected-value file beside each input, or one record carrying both. Where the
+input is small enough to write inline, one record is usually the clearer form.
+
+A surface may be divided into subdirectories along an internal dimension such
+as type or format version. The subdirectories share the surface's assertion and
+its `README.md`. A dimension that changes the assertion is not an internal
+dimension, it is a second surface.
+
+A subdirectory is the unit of subscription. It exists so that a consumer can run
+one directory to answer one conformance question, for example whether its
+implementation supports `geometry` type strings, and name that directory in its
+own configuration rather than filtering cases at runtime. Taking some
+subdirectories of a surface and not others is normal. Organize them so that the
+choice is expressible by path.
 
 Specs can have dependencies on other Iceberg specs. For example, Table Spec has
 a dependency on Iceberg Type Spec. In such cases, we recommend creating test
@@ -141,10 +157,18 @@ spec caps decimal precision at 38, but whether a reader must reject
 
 We do not want to leave these out, and we do not want to invent an answer for
 them either. Instead we commit the case as an open case. The input is pinned,
-no expected value is committed, and the case carries a link to where the
-question is being decided. Capturing it this way is what makes the boundary
-concrete, so that implementations can show where they currently land and the
-discussion has something specific to point at.
+the expected values the spec does not fix are not committed, and the case
+carries a reference to the question. Capturing it this way is what makes the
+boundary concrete, so that implementations can show where they currently land
+and the discussion has something specific to point at.
+
+Open is per assertion, not per case. A surface can assert several things about
+one input, and the spec can fix some and not others. Leave open only what it
+does not fix, so an unsettled serialized form does not also cost you a settled
+parse.
+
+Where no discussion has been opened yet, reference the change or the clause the
+ambiguity originates in, and say so in the pull request.
 
 How the open state is written is up to the surface, but every surface must make
 it possible for a consumer to tell an open case from an assertable one without
@@ -226,8 +250,16 @@ one will need to say how it writes it.
    which implementations you checked it against, and whether the case is an
    addition or a correction.
 
-A new surface additionally needs a `README.md` defining its assertion and the
-shape of its inputs and expected values.
+A new surface additionally needs a `README.md`. Section names and order are up
+to you, but it has to cover:
+
+- The assertion, stated as an expression and not only as prose.
+- What the surface covers, and what was deliberately left out and why.
+- Each subdirectory, what it covers, and whether a consumer can subscribe to it
+  on its own.
+- The shape of a case, and how to read its expected values.
+- The consumer loop, as language-neutral pseudocode. It has to settle the
+  dispatch on an open case, the comparison rule, and how a failure is labeled.
 
 ## License headers
 
