@@ -59,11 +59,10 @@ scope. Any spec-valid encoding is valid.
 Given the above goal, it is important that contributors think deeply about what
 we are trying to verify when we introduce a new test surface.
 
-The repository consists of many test surfaces, often sub-grouped by versioned
-directories (`table-spec/v1`, `table-spec/v2`). Often, test surfaces map to
-specs. Each surface directory holds its input artifacts, the expected values
-co-located with them, and a `README.md` defining the assertion a consumer
-implements.
+A test surface is one spec behavior verified by one assertion. Each surface
+directory holds its input artifacts, the expected values co-located with them,
+and a `README.md` stating that assertion. Surfaces are grouped by the spec they
+cover, and test surfaces often map to specs.
 
 Specs can have dependencies on other Iceberg specs. For example, Table Spec has
 a dependency on Iceberg Type Spec. In such cases, we recommend creating test
