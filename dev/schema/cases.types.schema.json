@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iceberg.apache.org/verification/cases.types.schema.json",
+  "title": "Conformance cases (types surface extension)",
+  "description": "Extra constraints for table-spec/types: every case cites the spec. Applied on top of cases.base.schema.json by dev/validate-fixtures.py.",
+  "type": "object",
+  "required": ["cases"],
+  "properties": {
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["clause", "spec_ref"],
+        "properties": {
+          "clause": { "type": "string", "minLength": 1 },
+          "spec_ref": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

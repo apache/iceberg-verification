@@ -1,0 +1,52 @@
+{
+  "cases": [
+    {
+      "id": "geometry-crs84",
+      "valid": true,
+      "input": "geometry(OGC:CRS84)",
+      "decoded": {"type": "geometry", "crs": "OGC:CRS84"},
+      "clause": "geometry(C) with explicit CRS; the canonical serialized form is unquoted \"geometry(<C>)\"",
+      "spec_ref": "format/spec.md#appendix-c-json-serialization"
+    },
+    {
+      "id": "geometry-srid",
+      "valid": true,
+      "input": "geometry(srid:4326)",
+      "decoded": {"type": "geometry", "crs": "srid:4326"},
+      "clause": "geometry(C) example from Appendix C is the unquoted \"geometry(srid:4326)\"",
+      "spec_ref": "format/spec.md#appendix-c-json-serialization"
+    },
+    {
+      "id": "geometry-default-crs",
+      "valid": true,
+      "input": "geometry",
+      "decoded": {"type": "geometry", "crs": "OGC:CRS84"},
+      "clause": "geometry(C): if C is not specified, C is OGC:CRS84",
+      "spec_ref": "format/spec.md#primitive-types"
+    },
+    {
+      "id": "geography-crs84-spherical",
+      "valid": true,
+      "input": "geography(OGC:CRS84, spherical)",
+      "decoded": {"type": "geography", "crs": "OGC:CRS84", "algorithm": "spherical"},
+      "clause": "geography(C, A); the canonical serialized form is unquoted \"geography(<C>, <A>)\"",
+      "spec_ref": "format/spec.md#appendix-c-json-serialization"
+    },
+    {
+      "id": "geography-default",
+      "valid": true,
+      "input": "geography",
+      "decoded": {"type": "geography", "crs": "OGC:CRS84", "algorithm": "spherical"},
+      "clause": "geography(C, A): if not specified, C is OGC:CRS84 and A is spherical",
+      "spec_ref": "format/spec.md#primitive-types"
+    },
+    {
+      "id": "geography-vincenty",
+      "valid": true,
+      "input": "geography(OGC:CRS84, vincenty)",
+      "decoded": {"type": "geography", "crs": "OGC:CRS84", "algorithm": "vincenty"},
+      "clause": "geography edge-interpolation algorithm A is one of spherical, vincenty, thomas, andoyer, karney",
+      "spec_ref": "format/spec.md#appendix-g-geospatial-notes"
+    }
+  ]
+}
