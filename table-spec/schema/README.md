@@ -19,10 +19,10 @@
 
 # Schema decoding
 
-Reading a schema JSON produces the same schema in every implementation. Field id
-is column identity in Iceberg, so two implementations that disagree about which
-id a nested field carries read each other's data files incorrectly and raise
-nothing. That is the failure this surface exists to catch.
+Reading a schema JSON should produce the same schema in every implementation.
+The assertions in this surface are intentionally scoped narrowly to catch
+serialization issues of type strings (like decimal(P, S)), and allowed fields
+within the Iceberg schema and its struct fields.
 
 ## Assertion
 
@@ -37,12 +37,10 @@ schema JSONs can be the same schema. `decoded` is the comparable form.
 ## Scope
 
 This surface reads the schema JSON object and nothing around it. Writing a schema
-back out is a later phase, per `CONTRIBUTING.md`. `initial-default` and
-`write-default` decode by the Appendix D single value rules and belong in their
-own surface. Whether a type is legal at a given format version cannot be decided
-here, because a schema JSON carries no version. And a decimal whose scale exceeds
-its precision, such as `decimal(3, 6)`, is left out because the spec neither
-permits nor forbids it.
+back out is a later phase, per `CONTRIBUTING.md`. Whether a type is legal at a given
+format version cannot be decided
+here, because a schema JSON carries no version. Type to format-version conformance
+is out of scope and is best verified at a higher level.
 
 ## Inputs
 
@@ -50,15 +48,15 @@ permits nor forbids it.
 `schema-id`, `identifier-field-ids`, and every v1 and v2 primitive type. Each
 other subdirectory covers one v3 type and is named for it.
 
-Subscribe by subdirectory. An implementation with no geospatial support runs
+Consumers should subscribe by subdirectory. An implementation with no geospatial support runs
 everything except `geospatial/` and names that in its own configuration. A
-subdirectory exists where an implementation can lack what it covers, which is why
-nesting is not one: it carries the most risk here, and nobody opts out of lists
-and maps.
+subdirectory exists where an implementation can lack what it covers, so that once
+it is implemented, the feature implementation can be tested incrementally by
+opting into the additional subdirectory.
 
 ## Case format
 
-Each file holds a `cases` array. One case, complete:
+Each file holds a `cases` array. An example:
 
 ```json
 {
@@ -101,9 +99,11 @@ Each row of `decoded.fields` is:
   and `value`.
 - `parent`, the enclosing field's id, or `null` at the top level.
 - `required`, the field's required flag. Map keys are always `true`.
-- `type`, one of `struct`, `list` or `map` for a nested type, whose children are
-  their own rows. Otherwise the canonical type string from the Appendix C types
-  table.
+- `type`. A nested type is `struct`, `list` or `map`, and its children are their
+  own rows. A parameterized type is an object holding the type name and its
+  decoded parameters: `decimal` carries `precision` and `scale`, `fixed` carries
+  `length`, `geometry` carries `crs`, `geography` carries `crs` and `algorithm`.
+  Every other type is the type name from the Appendix C types table.
 - `doc`, the field's doc string, or `null`.
 
 ## Procedure
@@ -139,11 +139,3 @@ Expected values are JSON. Field ids, `schema-id` and `parent` are written as
 numbers, because the spec types field ids as `int` and caps them below
 `Integer.MAX_VALUE - 200`. `parent` and `doc` are written as `null` where they
 have no value, and `null` there is a decoded value, not a missing assertion.
-
-A decimal projects as `decimal(9, 2)`, with the space. The Appendix C row is
-inconsistent, carrying the template `"decimal(<P>,<S>)"` alongside both
-`"decimal(9,2)"` and `"decimal(9, 2)"`.
-[apache/iceberg#16798](https://github.com/apache/iceberg/pull/16798) declared the
-table's type strings canonical and its title states the intended form is
-`decimal(P, S)`, but it did not update the row. Every implementation emits the
-spaced form. A one line fix to the row closes this.
