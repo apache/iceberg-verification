@@ -23,7 +23,7 @@ First, thank you for contributing to iceberg-verification! The goal of this
 document is to provide the guidelines you need to maintain high quality
 conformance fixtures for all Iceberg implementations.
 
-[Iceberg](https://iceberg.apache.org/) is first and foremost a Spec, an
+[Apache Iceberg](https://iceberg.apache.org/) is first and foremost a specification, an
 agreement between different implementations on the structure and meaning of the
 artifacts that make up a table. And as such, it is crucial that the way each
 implementation interprets the spec, and the values and artifacts it stores and
