@@ -4,3 +4,21 @@
 *~
 .idea/
 .vscode/
+
+# Apache RAT jar downloaded by dev/check-license
+/lib/
+
+# Build artifacts
+runners/rust/target/
+runners/java/.gradle/
+runners/java/build/
+runners/python/.venv/
+__pycache__/
+*.py[cod]
+
+# Vendored implementation checkouts (cloned at runtime by dev/run-local.sh, never committed)
+runners/go/iceberg-go/
+runners/rust/iceberg-rust/
+runners/python/iceberg-python/
+runners/java/iceberg-src/
+runners/**/*.bak

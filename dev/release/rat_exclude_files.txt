@@ -1,0 +1,49 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+.gitignore
+LICENSE
+NOTICE
+lib
+
+# Go module bookkeeping files carry no license header by convention.
+# RAT --input-exclude-file patterns are root-anchored, so subdir files need **/ globs.
+**/go.mod
+**/go.sum
+
+# Fixture data. JSON and JSON Lines have no comment syntax, so they cannot
+# carry an Apache header; the surface README states the corpus is AL2-licensed.
+**/*.json
+**/*.jsonl
+
+# Gradle wrapper binary shipped with the Java runner so CI needs no preinstalled
+# gradle; it is a binary jar and carries no license header.
+runners/java/gradle/wrapper/gradle-wrapper.jar
+
+# Generated Gradle wrapper properties and the Rust toolchain pin: no header slot.
+**/gradle-wrapper.properties
+**/rust-toolchain.toml
+
+# Local build artifacts and checked-out implementations under test. All gitignored
+# and absent from a clean CI checkout, but RAT's SCM exclusion does not honor nested
+# .gitignore files during a dirty-tree local scan, so exclude them explicitly.
+**/target/**
+**/.gradle/**
+**/build/**
+runners/go/iceberg-go/**
+runners/rust/iceberg-rust/**
+runners/python/.venv/**

@@ -23,6 +23,15 @@ A verification framework for [Apache Iceberg](https://iceberg.apache.org/)
 implementations: language-neutral conformance fixtures, and the runners that
 exercise them.
 
+## Status
+
+Nightly type-surface conformance per implementation (informational, non-gating):
+
+![iceberg-go](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/<user>/<gistid>/raw/iceberg-go.json)
+![iceberg-rust](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/<user>/<gistid>/raw/iceberg-rust.json)
+![pyiceberg](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/<user>/<gistid>/raw/pyiceberg.json)
+![iceberg-java](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/<user>/<gistid>/raw/iceberg-java.json)
+
 ## Motivation
 
 The Iceberg [specification](https://iceberg.apache.org/spec/) is prose. Each
@@ -48,8 +57,9 @@ file format writer version are out of scope. Any spec-valid encoding is valid.
 
 Adoption is by self-election and is incremental. An implementation pins this
 repository to a commit, runs the surfaces it opts into, and bumps that pin
-deliberately. There is no central conformance gate and no pass/fail matrix
-across implementations.
+deliberately. There is no central conformance gate. The nightly status matrix
+and the README badges are informational only - they report divergences and
+never block any implementation's CI.
 
 ## Contributing
 

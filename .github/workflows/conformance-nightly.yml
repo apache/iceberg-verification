@@ -1,0 +1,280 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Nightly conformance: run all four runners once a day, render the aggregate
+# matrix into the run summary, and refresh the README status badges. Timed after
+# apache/iceberg publishes its Java SNAPSHOT at 00:00 UTC, so the Java job tracks
+# the moving 1.12.0-SNAPSHOT; Go/Rust/Python re-confirm their pinned releases.
+# Report-only: every job is non-blocking and nothing here gates or commits.
+# The per-push release lanes (conformance-*.yml) are unchanged.
+name: "Conformance (Nightly)"
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 06:00 UTC daily, after the 00:00 UTC Java SNAPSHOT publish
+  workflow_dispatch:
+
+concurrency:
+  group: conformance-nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  nightly-go:
+    name: iceberg-go (nightly)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+    - name: Checkout fixtures
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Install Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version: '1.25.9'
+        cache-dependency-path: runners/go/go.sum
+    - name: Run type conformance
+      id: run
+      working-directory: runners/go
+      run: |
+        set +e
+        mkdir -p /tmp/status
+        out=/tmp/status/iceberg-go.txt
+        go mod tidy
+        if ! go build -o /tmp/conformance-go . ; then
+          echo "ERROR: go build failed (see step log)" > "$out"
+          echo "code=2" >> "$GITHUB_OUTPUT"; exit 0
+        fi
+        /tmp/conformance-go 2>&1 | tee "$out"
+        echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+    - name: Report results (step summary + annotations)
+      if: always()
+      run: >
+        bash "$GITHUB_WORKSPACE/dev/ci-report.sh"
+        iceberg-go /tmp/status/iceberg-go.txt
+        nightly "${{ steps.run.outputs.code }}"
+        iceberg-go@v0.6.0
+    - name: Upload per-impl result
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: status-iceberg-go
+        path: /tmp/status/iceberg-go.txt
+        if-no-files-found: error
+
+  nightly-python:
+    name: pyiceberg (nightly)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+    - name: Checkout fixtures
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Install Python
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      with:
+        python-version: '3.12'
+    - name: Install uv
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      with:
+        enable-cache: true
+    - name: Install pyiceberg (pinned release)
+      run: uv pip install --system "pyiceberg==0.12.0"
+    - name: Run type conformance
+      id: run
+      working-directory: runners/python
+      run: |
+        set +e
+        mkdir -p /tmp/status
+        out=/tmp/status/pyiceberg.txt
+        python runner.py 2>&1 | tee "$out"
+        echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+    - name: Report results (step summary + annotations)
+      if: always()
+      run: >
+        bash "$GITHUB_WORKSPACE/dev/ci-report.sh"
+        pyiceberg /tmp/status/pyiceberg.txt
+        nightly "${{ steps.run.outputs.code }}"
+        pyiceberg==0.12.0
+    - name: Upload per-impl result
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: status-pyiceberg
+        path: /tmp/status/pyiceberg.txt
+        if-no-files-found: error
+
+  nightly-rust:
+    name: iceberg-rust (nightly)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+    - name: Checkout fixtures
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Setup Rust toolchain
+      working-directory: runners/rust
+      run: rustup show && rustup update stable
+    - name: Cache Rust artifacts
+      uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2.9.2
+      with:
+        workspaces: runners/rust
+    - name: Run type conformance
+      id: run
+      working-directory: runners/rust
+      run: |
+        set +e
+        mkdir -p /tmp/status
+        out=/tmp/status/iceberg-rust.txt
+        if ! cargo build --quiet ; then
+          echo "ERROR: cargo build failed (see step log)" > "$out"
+          echo "code=2" >> "$GITHUB_OUTPUT"; exit 0
+        fi
+        cargo run --quiet 2>&1 | tee "$out"
+        echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+    - name: Report results (step summary + annotations)
+      if: always()
+      run: >
+        bash "$GITHUB_WORKSPACE/dev/ci-report.sh"
+        iceberg-rust /tmp/status/iceberg-rust.txt
+        nightly "${{ steps.run.outputs.code }}"
+        iceberg@0.10.1
+    - name: Upload per-impl result
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: status-iceberg-rust
+        path: /tmp/status/iceberg-rust.txt
+        if-no-files-found: error
+
+  nightly-java:
+    name: iceberg-java (nightly SNAPSHOT)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+    - name: Checkout fixtures
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Install Java
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      with:
+        distribution: zulu
+        java-version: '17'
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+    - name: Run type conformance
+      id: run
+      working-directory: runners/java
+      # installDist then run the launcher directly so the runner's own exit code
+      # (0 PASS / 1 FAIL / 2 ERROR) survives; `gradlew run` collapses 1 and 2.
+      run: |
+        set +e
+        mkdir -p /tmp/status
+        out=/tmp/status/iceberg-java.txt
+        if ! ./gradlew installDist --quiet -PicebergVersion=1.12.0-SNAPSHOT ; then
+          echo "ERROR: gradle installDist failed (see step log)" > "$out"
+          echo "code=2" >> "$GITHUB_OUTPUT"; exit 0
+        fi
+        build/install/conformance-java/bin/conformance-java 2>&1 | tee "$out"
+        echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+    - name: Report results (step summary + annotations)
+      if: always()
+      run: >
+        bash "$GITHUB_WORKSPACE/dev/ci-report.sh"
+        iceberg-java /tmp/status/iceberg-java.txt
+        nightly "${{ steps.run.outputs.code }}"
+        iceberg-api:1.12.0-SNAPSHOT
+    - name: Upload per-impl result
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: status-iceberg-java
+        path: /tmp/status/iceberg-java.txt
+        if-no-files-found: error
+
+  render:
+    name: render status matrix
+    needs: [nightly-go, nightly-python, nightly-rust, nightly-java]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Checkout fixtures
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Collect per-impl results
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      with:
+        pattern: status-*
+        merge-multiple: true
+        path: /tmp/status
+    - name: Render matrix into the run summary
+      run: |
+        python3 dev/build-status-matrix.py /tmp/status /tmp/STATUS.md
+        cat /tmp/STATUS.md >> "$GITHUB_STEP_SUMMARY"
+    - name: Publish aggregate results
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: nightly-status
+        path: /tmp/status/*.txt
+        if-no-files-found: error
+
+  badges:
+    name: update ${{ matrix.impl }} badge
+    needs: render
+    # Never on a pull_request: the gist PAT must not be reachable from fork code.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    strategy:
+      matrix:
+        impl: [iceberg-go, iceberg-rust, pyiceberg, iceberg-java]
+    steps:
+    - name: Checkout (for build-status-matrix.py)
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Collect results
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      with:
+        name: nightly-status
+        path: /tmp/status
+    - name: Compute badge fields
+      id: fields
+      env:
+        IMPL: ${{ matrix.impl }}
+      run: |
+        python3 dev/build-status-matrix.py --json /tmp/status /tmp/badges
+        f="/tmp/badges/${IMPL}.json"
+        echo "message=$(python3 -c "import json;print(json.load(open('$f'))['message'])")" >> "$GITHUB_OUTPUT"
+        echo "color=$(python3 -c "import json;print(json.load(open('$f'))['color'])")" >> "$GITHUB_OUTPUT"
+    - name: Update gist badge
+      uses: schneegans/dynamic-badges-action@28b0fa8bdeb46170ac397105ece0c1fe58f68910 # v1.9.0
+      with:
+        auth: ${{ secrets.GIST_TOKEN }}
+        gistID: __GIST_ID__   # TODO: the secret gist's id (github.com/<user>/<gistid>)
+        filename: ${{ matrix.impl }}.json
+        label: ${{ matrix.impl }}
+        message: ${{ steps.fields.outputs.message }}
+        color: ${{ steps.fields.outputs.color }}
