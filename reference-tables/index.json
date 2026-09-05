@@ -1,0 +1,28 @@
+{
+  "tables": [
+    {
+      "name": "v2/simple-append-parquet-data",
+      "format-version": 2,
+      "written-by": "Iceberg Java 1.11.0",
+      "data-file-format": "parquet",
+      "metadata": "v2/simple-append-parquet-data/metadata/v3.metadata.json",
+      "description": "Flat schema of long, string and timestamptz. Two appends, four rows, one null."
+    },
+    {
+      "name": "v2/nested-types-parquet-data",
+      "format-version": 2,
+      "written-by": "Iceberg Java 1.11.0",
+      "data-file-format": "parquet",
+      "metadata": "v2/nested-types-parquet-data/metadata/v2.metadata.json",
+      "description": "Struct, list and map, so every nested id space appears. One snapshot, two rows, one of them entirely null."
+    },
+    {
+      "name": "v1/partitioned-parquet-data",
+      "format-version": 1,
+      "written-by": "Iceberg Java 1.11.0",
+      "data-file-format": "parquet",
+      "metadata": "v1/partitioned-parquet-data/metadata/v3.metadata.json",
+      "description": "Identity partition on category and a day transform on event_ts. Two snapshots, one data file per partition, three rows."
+    }
+  ]
+}
