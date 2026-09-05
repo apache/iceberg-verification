@@ -38,10 +38,9 @@ platforms.
 
 One thing to be clear about up front: we surface ambiguity here, we do not
 settle it here. When a case has no clear answer in the spec, raise it on
-[dev@iceberg.apache.org](https://lists.apache.org/list.html?dev@iceberg.apache.org),
-and commit the case in the meantime as an open case with no expected value. See
-[Cases the spec has not settled](#cases-the-spec-has-not-settled). Committing it
-is often what gives the discussion something specific to point at.
+[dev@iceberg.apache.org](https://lists.apache.org/list.html?dev@iceberg.apache.org)
+and leave the unsettled assertion out until there is an clear expectation in the specification to write against. See
+[Cases the spec has not settled](#cases-the-spec-has-not-settled).
 
 ## Does your change belong here?
 
@@ -50,7 +49,8 @@ them.
 
 If you have found a bug in one implementation, that belongs in that
 implementation's repository. Open a fixture pull request here when the spec
-fixes an expected value and an implementation disagrees with it.
+fixes an expected valid or rejected value, so that existing and future
+implementations have reference values to verify against.
 
 Engine query results, live catalog protocol behavior, and physical encoding
 choices such as compression codec and file format writer version are out of
@@ -125,7 +125,7 @@ That said, a few things hold no matter which surface you are working on.
 
 Where the spec fixes a canonical form, as it does for type strings, we can
 assert that re-serializing the parsed input reproduces that form exactly.
-Everywhere else, we compare the decoded logical values.
+Everywhere else, we should compare the decoded logical values instead.
 
 It is worth thinking carefully about this, because the stricter option may not
 be the most suitable assertion. If we compare a `metadata.json` or an Avro
@@ -151,36 +151,25 @@ see the next section.
 ### Cases the spec has not settled
 
 Often the most interesting case is one where the spec does not yet give a clear
-answer, and implementations have landed in different places. For example, the
-spec caps decimal precision at 38, but whether a reader must reject
-`decimal(40, 2)` is not settled.
+answer, and implementations have landed in different places.
 
-We do not want to leave these out, and we do not want to invent an answer for
-them either. Instead we commit the case as an open case. The input is pinned,
-the expected values the spec does not fix are not committed, and the case
-carries a reference to the question. Capturing it this way is what makes the
-boundary concrete, so that implementations can show where they currently land
-and the discussion has something specific to point at.
+Only what the spec fixes should be asserted. A surface can assert several things
+about one input, and the spec can fix some and not others. An unsettled
+serialized form does not cost a settled parse result. The assertions the spec
+fixes should be written and the rest left out.
 
-Open is per assertion, not per case. A surface can assert several things about
-one input, and the spec can fix some and not others. Leave open only what it
-does not fix, so an unsettled serialized form does not also cost you a settled
-parse.
+If the specification is not clear enough to guide the assertion, the question
+should be raised on
+[dev@iceberg.apache.org](https://lists.apache.org/list.html?dev@iceberg.apache.org)
+and a pull request opened holding the input. The pull request stays open while
+the question is discussed, and it is what the thread points at. It is merged
+once the community settles the answer and the expected value can be written.
 
-Where no discussion has been opened yet, reference the change or the clause the
-ambiguity originates in, and say so in the pull request.
+Where no discussion has been opened yet, the change or the clause the ambiguity
+originates in should be referenced.
 
-How the open state is written is up to the surface, but every surface must make
-it possible for a consumer to tell an open case from an assertable one without
-reading the fixture by hand.
-
-An open case never fails a consumer. Running one and recording what your
-implementation does is optional, and it is the most useful thing you can bring
-back to the discussion.
-
-Once the community settles the question, the case gains its expected value and
-stops being open. Call that out in the pull request, because a consumer bumping
-its pin may start failing a case that used to pass.
+A surface `README.md` names the questions its inputs are waiting on, so the
+boundary is visible at a pinned commit.
 
 ### Keep expected values unambiguous across implementations
 
@@ -239,6 +228,22 @@ one will need to say how it writes it.
 - **Say whether you are adding or correcting.** A consumer bumping its pin
   needs to know whether a newly failing case is expected.
 
+## Fixture size discipline
+
+Cost is driven by commit count rather than schema width. An Avro manifest has a
+floor near 4.3 KB, since its header embeds the manifest schema, and each further
+snapshot adds a manifest list near 2 KB and a manifest of 4 to 10 KB. Measured
+against PyIceberg 0.12.0 at format version 2, a fifteen-column table with nested
+types over three snapshots comes to 25.7 KB.
+
+A few guidelines to keep fixtures from growing unnecessarily:
+
+- A fixture should be a minimal reproduction of the assertion under test.
+- Snapshot and manifest count should be kept to what that assertion requires.
+  Where an implementation is used to produce a sample table, consider committing
+  only the current `metadata.json` rather than every version the writer produced.
+- Reference tables above 100 KB should be justified in the pull request.
+
 ## Opening a pull request
 
 1. Identify the surface. Reuse an existing one where the assertion already
@@ -259,9 +264,8 @@ to you, but it has to cover:
   on its own.
 - The shape of a case, and how to read its expected values.
 - The consumer loop, written so that two implementers cannot read it two ways.
-  It has to settle the comparison rule, how a failure is labeled, and the
-  dispatch on an open case where the surface has any. Pseudocode is one way to do
-  that and prose is another.
+  It has to settle the comparison rule and how a failure is labeled. Pseudocode
+  is one way to do that and prose is another.
 
 ## License headers
 
