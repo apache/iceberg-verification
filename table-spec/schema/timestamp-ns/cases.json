@@ -1,0 +1,41 @@
+{
+  "cases": [
+    {
+      "id": "timestamp-ns-both-zones",
+      "valid": true,
+      "input": {
+        "type": "struct",
+        "schema-id": 0,
+        "fields": [
+          {
+            "id": 1,
+            "name": "id",
+            "required": true,
+            "type": "long"
+          },
+          {
+            "id": 2,
+            "name": "event_ts",
+            "required": false,
+            "type": "timestamp_ns"
+          },
+          {
+            "id": 3,
+            "name": "event_tstz",
+            "required": false,
+            "type": "timestamptz_ns"
+          }
+        ]
+      },
+      "decoded": {
+        "schema-id": 0,
+        "identifier-field-ids": [],
+        "fields": [
+          { "id": 1, "name": "id", "parent": null, "required": true, "type": "long", "doc": null },
+          { "id": 2, "name": "event_ts", "parent": null, "required": false, "type": "timestamp_ns", "doc": null },
+          { "id": 3, "name": "event_tstz", "parent": null, "required": false, "type": "timestamptz_ns", "doc": null }
+        ]
+      }
+    }
+  ]
+}
