@@ -48,11 +48,11 @@ is out of scope and is best verified at a higher level.
 `schema-id`, `identifier-field-ids`, and every v1 and v2 primitive type. Each
 other subdirectory covers one v3 type and is named for it.
 
-Consumers should subscribe by subdirectory. An implementation with no geospatial support runs
-everything except `geospatial/` and names that in its own configuration. A
-subdirectory exists where an implementation can lack what it covers, so that once
-it is implemented, the feature implementation can be tested incrementally by
-opting into the additional subdirectory.
+Consumers should subscribe by subdirectory. An implementation with no geography
+support runs everything except `geography/` and names that in its own
+configuration. A subdirectory exists where an implementation can lack what it
+covers, so that once it is implemented, the feature implementation can be tested
+incrementally by opting into the additional subdirectory.
 
 ## Case format
 

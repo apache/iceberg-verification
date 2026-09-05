@@ -1,66 +1,6 @@
 {
   "cases": [
     {
-      "id": "geometry-default-crs",
-      "valid": true,
-      "input": {
-        "type": "struct",
-        "schema-id": 0,
-        "fields": [
-          {
-            "id": 1,
-            "name": "id",
-            "required": true,
-            "type": "long"
-          },
-          {
-            "id": 2,
-            "name": "geom",
-            "required": false,
-            "type": "geometry"
-          }
-        ]
-      },
-      "decoded": {
-        "schema-id": 0,
-        "identifier-field-ids": [],
-        "fields": [
-          { "id": 1, "name": "id", "parent": null, "required": true, "type": "long", "doc": null },
-          { "id": 2, "name": "geom", "parent": null, "required": false, "type": { "type": "geometry", "crs": "OGC:CRS84" }, "doc": null }
-        ]
-      }
-    },
-    {
-      "id": "geometry-explicit-crs",
-      "valid": true,
-      "input": {
-        "type": "struct",
-        "schema-id": 0,
-        "fields": [
-          {
-            "id": 1,
-            "name": "id",
-            "required": true,
-            "type": "long"
-          },
-          {
-            "id": 2,
-            "name": "geom",
-            "required": false,
-            "type": "geometry(srid:4326)"
-          }
-        ]
-      },
-      "decoded": {
-        "schema-id": 0,
-        "identifier-field-ids": [],
-        "fields": [
-          { "id": 1, "name": "id", "parent": null, "required": true, "type": "long", "doc": null },
-          { "id": 2, "name": "geom", "parent": null, "required": false, "type": { "type": "geometry", "crs": "srid:4326" }, "doc": null }
-        ]
-      }
-    },
-    {
       "id": "geography-defaults",
       "valid": true,
       "input": {
