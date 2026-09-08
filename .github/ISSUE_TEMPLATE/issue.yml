@@ -1,0 +1,65 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Issue
+description: Test surfaces, verification tooling, documentation, and repository governance.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This repository holds cross-language conformance fixtures and the
+        guidelines for contributing them.
+
+        The following two discussion topics are explicitly left out of scope of this repository:
+
+        - What the spec requires is discussed and settled on `dev@iceberg.apache.org`.
+        - A divergence in one implementation is fixed in that implementation's
+          repository.
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      description: |
+        - **New test surface**: a spec behavior no subdirectory covers today.
+        - **New cases**: further inputs and expected values under a surface that already exists.
+        - **Fixture correction**: a committed input, expected value, or reference table is wrong.
+        - **Verification tooling**: automation that runs a surface, reports divergence, or generates fixtures.
+        - **Consumption**: wiring this repository into an implementation's CI.
+        - **Documentation**: `README.md`, `CONTRIBUTING.md`, or a surface README.
+        - **Repository governance**: process, ownership, release, or infrastructure.
+      options:
+        - New test surface
+        - New cases in an existing surface
+        - Fixture correction
+        - Verification tooling
+        - Consumption by an implementation
+        - Documentation
+        - Repository governance
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: >-
+        What is being proposed or asked, and the spec section, dev@ thread, or
+        pull request it comes from.
+    validations:
+      required: true
