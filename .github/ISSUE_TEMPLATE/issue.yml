@@ -59,7 +59,6 @@ body:
     attributes:
       label: Description
       description: >-
-        What is being proposed or asked, and the spec section, dev@ thread, or
-        pull request it comes from.
+        What is being proposed, and related reference links (dev@ thread or specification).
     validations:
       required: true
