@@ -19,15 +19,6 @@ name: Documentation
 description: README, CONTRIBUTING, or a surface README is missing, unclear, or wrong.
 labels: ["docs"]
 body:
-  - type: input
-    id: document
-    attributes:
-      label: Document
-      description: The file, and the section within it.
-      placeholder: table-spec/schema/README.md, "Procedure"
-    validations:
-      required: true
-
   - type: textarea
     id: details
     attributes:
