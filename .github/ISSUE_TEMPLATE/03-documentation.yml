@@ -15,20 +15,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-blank_issues_enabled: false
+name: Documentation
+description: README, CONTRIBUTING, or a surface README is missing, unclear, or wrong.
+labels: ["docs"]
+body:
+  - type: input
+    id: document
+    attributes:
+      label: Document
+      description: The file, and the section within it.
+      placeholder: table-spec/schema/README.md, "Procedure"
+    validations:
+      required: true
 
-contact_links:
-  - name: What the spec requires, or how this project is run
-    url: https://lists.apache.org/list.html?dev@iceberg.apache.org
-    about: >-
-      Interpretation of the table spec is settled on dev@iceberg.apache.org, and
-      so is the direction of this repository: what it covers, how it is
-      governed, and what belongs in it. Fixtures record a settled reading. They
-      do not establish one.
-
-  - name: A defect in one implementation
-    url: https://iceberg.apache.org/community/
-    about: >-
-      A parser or writer that diverges from the spec is fixed in its own
-      repository: apache/iceberg, apache/iceberg-python, apache/iceberg-rust,
-      apache/iceberg-go, apache/iceberg-cpp.
+  - type: textarea
+    id: details
+    attributes:
+      label: Description
+      description: What is missing, unclear, or wrong.
+    validations:
+      required: true

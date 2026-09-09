@@ -15,20 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-blank_issues_enabled: false
-
-contact_links:
-  - name: What the spec requires, or how this project is run
-    url: https://lists.apache.org/list.html?dev@iceberg.apache.org
-    about: >-
-      Interpretation of the table spec is settled on dev@iceberg.apache.org, and
-      so is the direction of this repository: what it covers, how it is
-      governed, and what belongs in it. Fixtures record a settled reading. They
-      do not establish one.
-
-  - name: A defect in one implementation
-    url: https://iceberg.apache.org/community/
-    about: >-
-      A parser or writer that diverges from the spec is fixed in its own
-      repository: apache/iceberg, apache/iceberg-python, apache/iceberg-rust,
-      apache/iceberg-go, apache/iceberg-cpp.
+name: Tooling
+description: Automation that runs a surface, reports divergence, or generates fixtures.
+labels: ["tooling"]
+body:
+  - type: textarea
+    id: details
+    attributes:
+      label: Description
+      description: >-
+        What the tooling should do, and which surfaces or reference tables it
+        applies to.
+    validations:
+      required: true
