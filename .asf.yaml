@@ -48,9 +48,7 @@ github:
       required_linear_history: true
 
   features:
-    # Divergence bugs belong in the implementation repository that diverges.
-    # Fixture design is discussed on dev@iceberg.apache.org.
-    issues: false
+    issues: true
     wiki: false
     projects: false
 
