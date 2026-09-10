@@ -19,9 +19,9 @@
 
 # Apache Iceberg Verification
 
-A verification framework for [Apache Iceberg](https://iceberg.apache.org/)
-implementations: language-neutral conformance fixtures, and the runners that
-exercise them.
+A repository of conformance fixtures for
+[Apache Iceberg](https://iceberg.apache.org/) implementations. Language-neutral
+inputs, each paired with the expected value the spec fixes.
 
 ## Motivation
 
@@ -41,6 +41,9 @@ corrected in one place.
 Initial scope is read conformance. A reference writer emits each fixture, and
 every implementation verifies that it consumes the fixture correctly. Writer
 conformance is a later phase.
+
+Fixtures are what everything else is built on. Tooling that runs them may
+follow, and today each consumer writes its own assertions.
 
 This repository validates artifacts, not behavior. Engine query results, live
 protocol behavior, and physical encoding choices such as compression codec and

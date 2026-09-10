@@ -23,7 +23,7 @@
 # This file only takes effect on the default branch.
 
 github:
-  description: "Verification framework for Apache Iceberg implementations"
+  description: "Conformance fixtures for verifying Apache Iceberg implementations"
   homepage: https://iceberg.apache.org/
   labels:
     - iceberg
