@@ -23,6 +23,15 @@ A verification framework for [Apache Iceberg](https://iceberg.apache.org/)
 implementations: language-neutral conformance fixtures, and the runners that
 exercise them.
 
+## Status
+
+Nightly type-surface conformance per implementation (informational, non-gating):
+
+![iceberg-go](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/<user>/<gistid>/raw/iceberg-go.json)
+![iceberg-rust](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/<user>/<gistid>/raw/iceberg-rust.json)
+![pyiceberg](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/<user>/<gistid>/raw/pyiceberg.json)
+![iceberg-java](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/<user>/<gistid>/raw/iceberg-java.json)
+
 ## Motivation
 
 The Iceberg [specification](https://iceberg.apache.org/spec/) is prose. Each
@@ -48,13 +57,21 @@ file format writer version are out of scope. Any spec-valid encoding is valid.
 
 Adoption is by self-election and is incremental. An implementation pins this
 repository to a commit, runs the surfaces it opts into, and bumps that pin
-deliberately. There is no central conformance gate and no pass/fail matrix
-across implementations.
+deliberately. There is no central conformance gate. The nightly status matrix
+and the README badges are informational only - they report divergences and
+never block any implementation's CI.
+
+Conformance runs at two tiers: spec-derivable surfaces (such as types) are
+exercised by the runners here and reported nightly; surfaces that need an
+implementation's own internals are subscribed to and run by that implementation
+in its own CI. Both tiers read the same fixtures. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Contributing
 
-TODO: `CONTRIBUTING.md`, covering repository layout, fixture format, and how to
-add or correct a fixture.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the repository layout, the two-tier
+model, the fixture format, and how to add or correct a fixture or subscribe from
+an implementation.
 
 ## License
 

@@ -1,0 +1,10 @@
+{
+  "surfaces": [
+    {
+      "name": "types",
+      "path": "table-spec/types",
+      "readme": "table-spec/types/README.md",
+      "subdirs": ["primitive", "variant", "nested", "geospatial"]
+    }
+  ]
+}

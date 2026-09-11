@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iceberg.apache.org/verification/cases.base.schema.json",
+  "title": "Conformance cases (base)",
+  "description": "Structure shared by every table-spec surface's cases.json.",
+  "type": "object",
+  "required": ["cases"],
+  "properties": {
+    "cases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "required": ["id", "valid", "input"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "valid": { "type": "boolean" },
+        "input": true,
+        "decoded": true,
+        "canonical": { "type": "string" },
+        "clause": { "type": "string" },
+        "spec_ref": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "$comment": "a valid case must carry decoded",
+          "if": { "properties": { "valid": { "const": true } }, "required": ["valid"] },
+          "then": { "required": ["decoded"] }
+        },
+        {
+          "$comment": "an invalid case must not carry decoded",
+          "if": { "properties": { "valid": { "const": false } }, "required": ["valid"] },
+          "then": { "not": { "required": ["decoded"] } }
+        },
+        {
+          "$comment": "canonical is only allowed on a valid case",
+          "if": { "required": ["canonical"] },
+          "then": { "properties": { "valid": { "const": true } }, "required": ["valid"] }
+        }
+      ]
+    }
+  }
+}

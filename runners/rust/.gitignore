@@ -1,0 +1,7 @@
+# The implementation under test is checked out (CI) or symlinked (local) here.
+# No trailing slash, so a local symlink is ignored as well as a checked-out dir.
+/iceberg-rust
+/target/
+# Resolved against the ephemeral ./iceberg-rust above, so it is not committed;
+# CI regenerates it against the freshly checked-out implementation.
+/Cargo.lock
