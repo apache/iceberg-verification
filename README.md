@@ -20,16 +20,15 @@
 # Apache Iceberg Verification
 
 A verification framework for [Apache Iceberg](https://iceberg.apache.org/)
-implementations: language-neutral conformance fixtures, and the runners that
-exercise them.
+implementations, built on language-neutral, spec-derived conformance fixtures.
 
 ## Motivation
 
 The Iceberg [specification](https://iceberg.apache.org/spec/) is prose. Each
 implementation parses and serializes it on its own, so they drift. Tests
 maintained in isolation in each implementation cannot catch this, because each
-checks its own reading of the spec against itself. A shared misreading stays
-green and often surfaces only as a post-release bug report.
+checks its own reading of the spec against itself. A shared misreading goes
+unnoticed and often surfaces only as a post-release bug report.
 
 Expected values here are derived from the spec, not copied from an
 implementation, so a fixture catches both implementation bugs and genuine spec
@@ -38,23 +37,14 @@ corrected in one place.
 
 ## Scope
 
-Initial scope is read conformance. A reference writer emits each fixture, and
-every implementation verifies that it consumes the fixture correctly. Writer
-conformance is a later phase.
+Initial scope is read conformance of the type surface. `table-spec/types/` holds
+spec-derived fixtures, and each `cases.json` is validated against the JSON Schemas
+in `dev/schema/` by `dev/validate-fixtures.py`. Runners that exercise the fixtures
+against each implementation, and further surfaces, land in follow-up changes.
 
 This repository validates artifacts, not behavior. Engine query results, live
 protocol behavior, and physical encoding choices such as compression codec and
 file format writer version are out of scope. Any spec-valid encoding is valid.
-
-Adoption is by self-election and is incremental. An implementation pins this
-repository to a commit, runs the surfaces it opts into, and bumps that pin
-deliberately. There is no central conformance gate and no pass/fail matrix
-across implementations.
-
-## Contributing
-
-TODO: `CONTRIBUTING.md`, covering repository layout, fixture format, and how to
-add or correct a fixture.
 
 ## License
 
