@@ -61,7 +61,8 @@ scope. Any spec-valid encoding is valid.
 Given the above goal, it is important that contributors think deeply about what
 we are trying to verify when we introduce a new test surface.
 
-A test surface is one spec behavior verified by one assertion. Each surface
+A test surface is one spec behavior asserted via one relationship. It can hold several
+cases that assert expected valid and invalid values. Each surface
 directory holds its input artifacts, the expected values co-located with them,
 and a `README.md` stating that assertion. Surfaces are grouped by the spec they
 cover, and test surfaces often map to specs. Co-located can mean an
@@ -80,14 +81,14 @@ own configuration rather than filtering cases at runtime. Taking some
 subdirectories of a surface and not others is normal. Organize them so that the
 choice is expressible by path.
 
-Specs can have dependencies on other Iceberg specs. For example, Table Spec has
-a dependency on Iceberg Type Spec. In such cases, we recommend creating test
-surfaces for both layers at the root level, and focusing on the coverage that
-pertains to each level.
+Specs have layers of dependencies on sections of the Iceberg Spec. For example, 
+Table Spec, and View Spec has a dependency on the Iceberg Type section of the Table
+Spec. In such cases, we recommend creating test surfaces for both layers at the root level,
+and focusing on the coverage that pertains to each level.
 
 If there are edge case value concerns with the type spec, or we want to verify
 the field structure of a type spec (e.g. Geography Type), we want to include
-that coverage in the surface for the Iceberg Type Spec. Geography Type support
+that coverage in the test surface for the Iceberg Type. Geography Type support
 in a Table V3 spec can be added as a separate test at the Table Spec test
 surface, but the scope of testing will be different. In the Type Spec surface,
 we test edge cases in the type representation. In the Table Spec test, we check
@@ -208,7 +209,7 @@ Override any of these where they do not fit your surface, and say why in its
 `README.md`.
 
 Some values need more than these conventions. For example, the unscaled value
-of a `decimal(38, 10)` does not fit in 64 bits at all, so a surface that covers
+of a `decimal(38, 10)` can overflow 64 bits, so a surface that covers
 one will need to say how it writes it.
 
 ## What we expect of a fixture
