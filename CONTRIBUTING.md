@@ -39,7 +39,7 @@ platforms.
 One thing to be clear about up front: we surface ambiguity here, we do not
 settle it here. When a case has no clear answer in the spec, raise it on
 [dev@iceberg.apache.org](https://lists.apache.org/list.html?dev@iceberg.apache.org)
-and leave the unsettled assertion out until there is an clear expectation in the specification to write against. See
+and leave the unsettled assertion out until there is a clear expectation in the specification to write against. See
 [Cases the spec has not settled](#cases-the-spec-has-not-settled).
 
 ## Does your change belong here?
