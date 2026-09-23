@@ -29,6 +29,28 @@
           { "id": 2, "name": "future", "parent": null, "required": false, "type": "unknown", "doc": null }
         ]
       }
+    },
+    {
+      "id": "reject-unknown-required",
+      "valid": false,
+      "input": {
+        "type": "struct",
+        "schema-id": 0,
+        "fields": [
+          {
+            "id": 1,
+            "name": "id",
+            "required": true,
+            "type": "long"
+          },
+          {
+            "id": 2,
+            "name": "future",
+            "required": true,
+            "type": "unknown"
+          }
+        ]
+      }
     }
   ]
 }

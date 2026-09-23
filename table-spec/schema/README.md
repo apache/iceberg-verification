@@ -20,9 +20,11 @@
 # Schema decoding
 
 Reading a schema JSON should produce the same schema in every implementation.
-The assertions in this surface are intentionally scoped narrowly to catch
-serialization issues of type strings (like decimal(P, S)), and allowed fields
-within the Iceberg schema and its struct fields.
+This surface covers the schema document: the field tree and its id spaces,
+column order, required flags, `doc`, `schema-id` and `identifier-field-ids`.
+Type-string grammar, including the parsing and rejection of parameterized types
+such as `decimal(P, S)` and `fixed[L]`, is covered by the types surface under
+`table-spec/types/`.
 
 ## Assertion
 
@@ -37,22 +39,21 @@ schema JSONs can be the same schema. `decoded` is the comparable form.
 ## Scope
 
 This surface reads the schema JSON object and nothing around it. Writing a schema
-back out is a later phase, per `CONTRIBUTING.md`. Whether a type is legal at a given
-format version cannot be decided
-here, because a schema JSON carries no version. Type to format-version conformance
-is out of scope and is best verified at a higher level.
+back out is out of scope for this surface. Whether a type is legal at a given
+format version cannot be decided here, because a schema JSON carries no version.
+Type to format-version conformance is out of scope and is best verified at a
+higher level.
 
 ## Inputs
 
 `core/` holds the shape cases: nesting, every id space, column order, `doc`,
-`schema-id`, `identifier-field-ids`, and every v1 and v2 primitive type. Each
-other subdirectory covers one v3 type and is named for it.
+`schema-id`, `identifier-field-ids`, and every v1 and v2 primitive type. Every
+input in `core/` is valid writer output for format versions 1, 2 and 3.
 
-Consumers should subscribe by subdirectory. An implementation with no geography
-support runs everything except `geography/` and names that in its own
-configuration. A subdirectory exists where an implementation can lack what it
-covers, so that once it is implemented, the feature implementation can be tested
-incrementally by opting into the additional subdirectory.
+`unknown/` holds the cases for the `unknown` type, which must be optional.
+
+Consumers subscribe by subdirectory. An implementation with no `unknown` type
+runs `core/` only and names `unknown/` as excluded in its own configuration.
 
 ## Case format
 
@@ -101,8 +102,8 @@ Each row of `decoded.fields` is:
 - `required`, the field's required flag. Map keys are always `true`.
 - `type`. A nested type is `struct`, `list` or `map`, and its children are their
   own rows. A parameterized type is an object holding the type name and its
-  decoded parameters: `decimal` carries `precision` and `scale`, `fixed` carries
-  `length`, `geometry` carries `crs`, `geography` carries `crs` and `algorithm`.
+  decoded parameters: `decimal` carries `precision` and `scale`, and `fixed`
+  carries `length`.
   Every other type is the type name from the Appendix C types table.
 - `doc`, the field's doc string, or `null`.
 

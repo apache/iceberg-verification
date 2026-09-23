@@ -455,7 +455,7 @@
             "id": 14,
             "name": "f_decimal",
             "required": false,
-            "type": "decimal(9,2)"
+            "type": "decimal(9, 2)"
           }
         ]
       },
@@ -580,6 +580,31 @@
       }
     },
     {
+      "id": "reject-identifier-float-field",
+      "valid": false,
+      "input": {
+        "type": "struct",
+        "schema-id": 0,
+        "identifier-field-ids": [
+          2
+        ],
+        "fields": [
+          {
+            "id": 1,
+            "name": "id",
+            "required": true,
+            "type": "long"
+          },
+          {
+            "id": 2,
+            "name": "score",
+            "required": true,
+            "type": "float"
+          }
+        ]
+      }
+    },
+    {
       "id": "reject-identifier-non-primitive-field",
       "valid": false,
       "input": {
@@ -651,6 +676,124 @@
               }
             }
           }
+        ]
+      }
+    },
+    {
+      "id": "reject-identifier-nested-in-map-value",
+      "valid": false,
+      "input": {
+        "type": "struct",
+        "schema-id": 0,
+        "identifier-field-ids": [
+          5
+        ],
+        "fields": [
+          {
+            "id": 1,
+            "name": "id",
+            "required": true,
+            "type": "long"
+          },
+          {
+            "id": 2,
+            "name": "rows",
+            "required": true,
+            "type": {
+              "type": "map",
+              "key-id": 3,
+              "key": "string",
+              "value-id": 4,
+              "value-required": true,
+              "value": {
+                "type": "struct",
+                "fields": [
+                  {
+                    "id": 5,
+                    "name": "k",
+                    "required": true,
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-identifier-map-key",
+      "valid": false,
+      "input": {
+        "type": "struct",
+        "schema-id": 0,
+        "identifier-field-ids": [
+          3
+        ],
+        "fields": [
+          {
+            "id": 1,
+            "name": "id",
+            "required": true,
+            "type": "long"
+          },
+          {
+            "id": 2,
+            "name": "props",
+            "required": true,
+            "type": {
+              "type": "map",
+              "key-id": 3,
+              "key": "string",
+              "value-id": 4,
+              "value-required": true,
+              "value": "string"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "identifier-nested-in-required-struct",
+      "valid": true,
+      "input": {
+        "type": "struct",
+        "schema-id": 0,
+        "identifier-field-ids": [
+          3
+        ],
+        "fields": [
+          {
+            "id": 1,
+            "name": "id",
+            "required": true,
+            "type": "long"
+          },
+          {
+            "id": 2,
+            "name": "key",
+            "required": true,
+            "type": {
+              "type": "struct",
+              "fields": [
+                {
+                  "id": 3,
+                  "name": "part",
+                  "required": true,
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "decoded": {
+        "schema-id": 0,
+        "identifier-field-ids": [3],
+        "fields": [
+          { "id": 1, "name": "id", "parent": null, "required": true, "type": "long", "doc": null },
+          { "id": 2, "name": "key", "parent": null, "required": true, "type": "struct", "doc": null },
+          { "id": 3, "name": "part", "parent": 2, "required": true, "type": "string", "doc": null }
         ]
       }
     },
