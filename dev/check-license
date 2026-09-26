@@ -29,7 +29,7 @@ acquire_rat_jar () {
     if [ $(command -v curl) ]; then
       curl -L --silent "${URL}" > "$JAR_DL" && mv "$JAR_DL" "$JAR"
     elif [ $(command -v wget) ]; then
-      wget --quiet ${URL} -O "$JAR_DL" && mv "$JAR_DL" "$JAR"
+      wget --quiet "${URL}" -O "$JAR_DL" && mv "$JAR_DL" "$JAR"
     else
       printf "You do not have curl or wget installed, please install rat manually.\n"
       exit 1
@@ -67,7 +67,7 @@ mkdir -p "$FWDIR/lib"
 # --input-exclude-std GIT skips .git and anything .gitignore'd. Without it RAT
 # flags the .git pointer *file* that git worktrees use, since its built-in SCM
 # exclusion only covers .git directories.
-$java_cmd -jar "$rat_jar" \
+"$java_cmd" -jar "$rat_jar" \
   --input-exclude-file "$FWDIR/dev/.rat-excludes" \
   --input-exclude-std GIT IDEA MAC \
   --input-include-std HIDDEN_DIR \

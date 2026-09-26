@@ -46,13 +46,21 @@ jobs:
       run: python3 -m pip install -r dev/requirements.txt
     - name: Validate cases.json
       run: python3 dev/validate-fixtures.py
-    - name: Validator rejects a malformed fixture (self-test)
+    - name: Validator rejects malformed fixtures (self-test)
       run: |
-        tmp="$(mktemp -d)"
-        mkdir -p "$tmp/table-spec/types/x"
-        printf '%s' '{"cases":[{"id":"bad","valid":true,"input":"int","clause":"c","spec_ref":"s"}]}' > "$tmp/table-spec/types/x/cases.json"
-        if python3 dev/validate-fixtures.py "$tmp"; then
-          echo "self-test FAILED: validator accepted a malformed fixture (valid:true with no decoded)"
-          exit 1
-        fi
-        echo "self-test ok: validator rejected the malformed fixture"
+        set -e
+        assert_reject() {  # <desc> <cases-json>
+          d="$(mktemp -d)"
+          mkdir -p "$d/table-spec/types/x"
+          printf '%s' "$2" > "$d/table-spec/types/x/cases.json"
+          test -f "$d/table-spec/types/x/cases.json"
+          if python3 dev/validate-fixtures.py "$d" >/dev/null 2>&1; then
+            echo "self-test FAILED: validator accepted a malformed fixture ($1)"; exit 1
+          fi
+          echo "self-test ok: rejected ($1)"
+          rm -rf "$d"
+        }
+        assert_reject "valid:true with no decoded" '{"cases":[{"id":"a","valid":true,"input":"int","clause":"c","spec_ref":"s"}]}'
+        assert_reject "valid:false carrying decoded" '{"cases":[{"id":"a","valid":false,"input":"bad","decoded":{"type":"int"},"clause":"c","spec_ref":"s"}]}'
+        assert_reject "unknown property" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int"},"clause":"c","spec_ref":"s","spec-ref":"typo"}]}'
+        assert_reject "duplicate id in a surface" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int"},"clause":"c","spec_ref":"s"},{"id":"a","valid":true,"input":"long","decoded":{"type":"long"},"clause":"c","spec_ref":"s"}]}'

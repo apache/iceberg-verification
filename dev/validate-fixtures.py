@@ -19,7 +19,7 @@
 """Validate the conformance type fixtures against the JSON Schemas in dev/schema/.
 
 Each cases.json is validated against the base structural schema and the types schema
-(which requires clause and spec_ref); case ids must be globally unique.
+(which requires clause and spec_ref); case ids must be unique within a surface.
 """
 
 import glob

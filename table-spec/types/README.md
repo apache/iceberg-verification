@@ -40,9 +40,9 @@ language's representation.
 - `valid: false` - the parser must reject `input`. A rejection passes; a
   successful parse fails.
 
-`canonical` is present only where the spec pins one spelling. `decimal` has two
-blessed forms (`decimal(9,2)` and `decimal(9, 2)`), so its cases have no
-`canonical` and are compared by `decoded` alone.
+`canonical` is present only where the spec pins one spelling. Appendix C's canonical
+for `decimal` is the spaced `decimal(<P>, <S>)`; the no-space `decimal(9,2)` is an
+accepted read form that re-serializes to the canonical `decimal(9, 2)`.
 
 ## Scope
 
@@ -95,8 +95,11 @@ so a future surface may reuse a name like `int` or `string`.
 Cases are normative MUST by default. A case marked `normative_level: "should"` is
 advisory: the spec only recommends the behavior, so a reader that diverges is still
 conformant. Example: `decimal( 9 , 2 )`, since readers *should* accept optional
-whitespace around parameters and separators (Appendix C). A runner must report a
-failed `should` case distinctly from a pass, so the advisory tier stays visible.
+whitespace around parameters and separators (Appendix C). A runner reports one of
+`pass`, `fail` (a MUST violation, the only state that makes a run nonzero),
+`advisory_fail` (an unmet SHOULD, reported but never blocking), or `skip` (the case was
+not run: the surface is not subscribed, or the type is absent in the implementation), so
+the advisory tier stays visible rather than reading as inert.
 
 ## Provenance
 

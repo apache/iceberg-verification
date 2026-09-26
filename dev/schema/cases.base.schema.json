@@ -36,7 +36,7 @@
         {
           "$comment": "an invalid case must not carry decoded",
           "if": { "properties": { "valid": { "const": false } }, "required": ["valid"] },
-          "then": { "not": { "required": ["decoded"] } }
+          "then": { "properties": { "decoded": false } }
         },
         {
           "$comment": "canonical is only allowed on a valid case",

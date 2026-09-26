@@ -21,6 +21,6 @@ NOTICE
 lib
 
 # Fixture data and JSON Schemas have no comment syntax, so they cannot carry an
-# Apache header; the surface README states the corpus is AL2-licensed.
+# Apache header; they are covered by the repository LICENSE and NOTICE at the root.
 **/*.json
 **/*.jsonl
