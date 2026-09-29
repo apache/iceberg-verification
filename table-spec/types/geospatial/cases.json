@@ -3,11 +3,10 @@
     {
       "id": "geometry-crs84",
       "valid": true,
-      "normative_level": "should",
       "input": "geometry(OGC:CRS84)",
       "decoded": {"type": "geometry", "crs": "OGC:CRS84"},
       "canonical": "geometry(OGC:CRS84)",
-      "clause": "geometry(C) with explicit CRS; Appendix C's canonical is fully parameterized, but when C is the default OGC:CRS84 whether a writer may elide it is unsettled, so the write direction is advisory",
+      "clause": "geometry(C) with explicit CRS; the canonical serialized form is the unquoted \"geometry(<C>)\"",
       "spec_ref": "format/spec.md#appendix-c-json-serialization"
     },
     {
@@ -22,31 +21,46 @@
     {
       "id": "geometry-default-crs",
       "valid": true,
+      "input": "geometry",
+      "decoded": {"type": "geometry", "crs": "OGC:CRS84"},
+      "clause": "geometry(C): if C is not specified, C is OGC:CRS84 (spec.md:284-285); the read/parse direction is a MUST",
+      "spec_ref": "format/spec.md#primitive-types"
+    },
+    {
+      "id": "geometry-default-crs-write",
+      "valid": true,
       "normative_level": "should",
       "input": "geometry",
       "decoded": {"type": "geometry", "crs": "OGC:CRS84"},
       "canonical": "geometry(OGC:CRS84)",
-      "clause": "geometry(C): if C is not specified, C is OGC:CRS84; Appendix C's canonical is fully parameterized, but whether a writer may elide the default is unsettled, so the write direction is advisory",
+      "clause": "geometry(C) re-serialize: Appendix C's canonical is fully parameterized, but whether a writer may elide the default is unsettled, so the write direction is advisory",
       "spec_ref": "format/spec.md#appendix-c-json-serialization"
     },
     {
       "id": "geography-crs84-spherical",
       "valid": true,
-      "normative_level": "should",
       "input": "geography(OGC:CRS84, spherical)",
       "decoded": {"type": "geography", "crs": "OGC:CRS84", "algorithm": "spherical"},
       "canonical": "geography(OGC:CRS84, spherical)",
-      "clause": "geography(C, A) with explicit CRS and algorithm; Appendix C's canonical is fully parameterized, but when C/A are the defaults OGC:CRS84/spherical whether a writer may elide them is unsettled, so the write direction is advisory",
+      "clause": "geography(C, A) with explicit CRS and algorithm; the canonical serialized form is the unquoted \"geography(<C>, <A>)\"",
       "spec_ref": "format/spec.md#appendix-c-json-serialization"
     },
     {
       "id": "geography-default",
       "valid": true,
+      "input": "geography",
+      "decoded": {"type": "geography", "crs": "OGC:CRS84", "algorithm": "spherical"},
+      "clause": "geography(C, A): if not specified, C is OGC:CRS84 and A is spherical (spec.md:284-285); the read/parse direction is a MUST",
+      "spec_ref": "format/spec.md#primitive-types"
+    },
+    {
+      "id": "geography-default-write",
+      "valid": true,
       "normative_level": "should",
       "input": "geography",
       "decoded": {"type": "geography", "crs": "OGC:CRS84", "algorithm": "spherical"},
       "canonical": "geography(OGC:CRS84, spherical)",
-      "clause": "geography(C, A): if not specified, C is OGC:CRS84 and A is spherical; Appendix C's canonical is fully parameterized, but whether a writer may elide the default is unsettled, so the write direction is advisory",
+      "clause": "geography(C, A) re-serialize: Appendix C's canonical is fully parameterized, but whether a writer may elide the defaults is unsettled, so the write direction is advisory",
       "spec_ref": "format/spec.md#appendix-c-json-serialization"
     },
     {
@@ -56,7 +70,7 @@
       "input": "geography(OGC:CRS84)",
       "decoded": {"type": "geography", "crs": "OGC:CRS84", "algorithm": "spherical"},
       "canonical": "geography(OGC:CRS84, spherical)",
-      "clause": "geography(C, A): if A is unspecified but C is given, A defaults to spherical (Java reference behavior; Appendix C defines geography(<C>, <A>) as canonical)",
+      "clause": "geography(C): the 1-arg form (CRS given, algorithm omitted) is not in Appendix C grammar; cross-checked against Java reference behavior, which defaults A to spherical and re-serializes to the Appendix C canonical geography(<C>, <A>)",
       "spec_ref": "format/spec.md#appendix-c-json-serialization"
     },
     {

@@ -64,3 +64,7 @@ jobs:
         assert_reject "valid:false carrying decoded" '{"cases":[{"id":"a","valid":false,"input":"bad","decoded":{"type":"int"},"clause":"c","spec_ref":"s"}]}'
         assert_reject "unknown property" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int"},"clause":"c","spec_ref":"s","spec-ref":"typo"}]}'
         assert_reject "duplicate id in a surface" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int"},"clause":"c","spec_ref":"s"},{"id":"a","valid":true,"input":"long","decoded":{"type":"long"},"clause":"c","spec_ref":"s"}]}'
+        assert_reject "decoded decimal typo (precison)" '{"cases":[{"id":"a","valid":true,"input":"decimal(9,2)","decoded":{"type":"decimal","precison":9,"scale":2},"clause":"c","spec_ref":"s"}]}'
+        assert_reject "decoded fixed carrying len not length" '{"cases":[{"id":"a","valid":true,"input":"fixed[16]","decoded":{"type":"fixed","len":16},"clause":"c","spec_ref":"s"}]}'
+        assert_reject "decoded unknown type name" '{"cases":[{"id":"a","valid":true,"input":"x","decoded":{"type":"notatype"},"clause":"c","spec_ref":"s"}]}'
+        assert_reject "decoded simple type with extra key" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int","precision":9},"clause":"c","spec_ref":"s"}]}'
