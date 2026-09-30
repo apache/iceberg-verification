@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iceberg.apache.org/verification/cases.types.schema.json",
+  "title": "Conformance cases (types surface extension)",
+  "description": "Extra constraints for table-spec/types: every case cites the spec, and a case's decoded matches the per-type shape from Appendix C. Applied on top of cases.base.schema.json by dev/validate-fixtures.py.",
+  "type": "object",
+  "required": ["cases"],
+  "properties": {
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["clause", "spec_ref"],
+        "properties": {
+          "clause": { "type": "string", "minLength": 1 },
+          "spec_ref": { "type": "string", "minLength": 1 },
+          "decoded": { "$ref": "#/$defs/decodedType" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "decodedType": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["boolean", "int", "long", "float", "double", "date", "time", "timestamp", "timestamptz", "timestamp_ns", "timestamptz_ns", "string", "uuid", "binary", "unknown", "variant", "decimal", "fixed", "geometry", "geography", "struct", "list", "map"] }
+      },
+      "allOf": [
+        {
+          "$comment": "simple types carry only type",
+          "if": { "required": ["type"], "properties": { "type": { "enum": ["boolean", "int", "long", "float", "double", "date", "time", "timestamp", "timestamptz", "timestamp_ns", "timestamptz_ns", "string", "uuid", "binary", "unknown", "variant"] } } },
+          "then": { "properties": { "type": {} }, "additionalProperties": false }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "decimal" } } },
+          "then": { "required": ["precision", "scale"], "properties": { "type": {}, "precision": { "type": "integer" }, "scale": { "type": "integer" } }, "additionalProperties": false }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "fixed" } } },
+          "then": { "required": ["length"], "properties": { "type": {}, "length": { "type": "integer" } }, "additionalProperties": false }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "geometry" } } },
+          "then": { "required": ["crs"], "properties": { "type": {}, "crs": { "type": "string" } }, "additionalProperties": false }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "geography" } } },
+          "then": { "required": ["crs", "algorithm"], "properties": { "type": {}, "crs": { "type": "string" }, "algorithm": { "type": "string" } }, "additionalProperties": false }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "struct" } } },
+          "then": { "required": ["fields"], "properties": { "type": {}, "fields": { "type": "array", "items": { "$ref": "#/$defs/field" } } }, "additionalProperties": false }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "list" } } },
+          "then": { "required": ["element-id", "element-required", "element"], "properties": { "type": {}, "element-id": { "type": "integer" }, "element-required": { "type": "boolean" }, "element": { "$ref": "#/$defs/decodedType" } }, "additionalProperties": false }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "map" } } },
+          "then": { "required": ["key-id", "key", "value-id", "value-required", "value"], "properties": { "type": {}, "key-id": { "type": "integer" }, "key": { "$ref": "#/$defs/decodedType" }, "value-id": { "type": "integer" }, "value-required": { "type": "boolean" }, "value": { "$ref": "#/$defs/decodedType" } }, "additionalProperties": false }
+        }
+      ]
+    },
+    "field": {
+      "type": "object",
+      "required": ["id", "name", "required", "type"],
+      "properties": {
+        "id": { "type": "integer" },
+        "name": { "type": "string" },
+        "required": { "type": "boolean" },
+        "type": { "$ref": "#/$defs/decodedType" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iceberg.apache.org/verification/cases.base.schema.json",
+  "title": "Conformance cases (base)",
+  "description": "Structure shared by every table-spec surface's cases.json.",
+  "type": "object",
+  "required": ["cases"],
+  "additionalProperties": false,
+  "properties": {
+    "cases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "required": ["id", "valid", "input"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "valid": { "type": "boolean" },
+        "input": true,
+        "decoded": true,
+        "canonical": { "type": "string" },
+        "clause": { "type": "string" },
+        "spec_ref": { "type": "string" },
+        "normative_level": { "enum": ["must", "should"], "description": "must (default) or should. A should case is advisory (the spec only recommends the behavior); a runner must report a failed should distinctly from a pass, so the advisory tier stays visible rather than reading as inert." }
+      },
+      "allOf": [
+        {
+          "$comment": "a valid case must carry decoded",
+          "if": { "properties": { "valid": { "const": true } }, "required": ["valid"] },
+          "then": { "required": ["decoded"] }
+        },
+        {
+          "$comment": "an invalid case must not carry decoded",
+          "if": { "properties": { "valid": { "const": false } }, "required": ["valid"] },
+          "then": { "properties": { "decoded": false } }
+        },
+        {
+          "$comment": "canonical is only allowed on a valid case",
+          "if": { "required": ["canonical"] },
+          "then": { "properties": { "valid": { "const": true } }, "required": ["valid"] }
+        }
+      ]
+    }
+  }
+}
