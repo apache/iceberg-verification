@@ -42,29 +42,9 @@ jobs:
       uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
       with:
         python-version: '3.12'
-    - name: Install validator deps
-      run: python3 -m pip install -r dev/requirements.txt
+    - name: Check fixture formatting
+      run: make lint
     - name: Validate cases.json
-      run: python3 dev/validate-fixtures.py
-    - name: Validator rejects malformed fixtures (self-test)
-      run: |
-        set -e
-        assert_reject() {  # <desc> <cases-json>
-          d="$(mktemp -d)"
-          mkdir -p "$d/table-spec/types/x"
-          printf '%s' "$2" > "$d/table-spec/types/x/cases.json"
-          test -f "$d/table-spec/types/x/cases.json"
-          if python3 dev/validate-fixtures.py "$d" >/dev/null 2>&1; then
-            echo "self-test FAILED: validator accepted a malformed fixture ($1)"; exit 1
-          fi
-          echo "self-test ok: rejected ($1)"
-          rm -rf "$d"
-        }
-        assert_reject "valid:true with no decoded" '{"cases":[{"id":"a","valid":true,"input":"int","clause":"c","spec_ref":"s"}]}'
-        assert_reject "valid:false carrying decoded" '{"cases":[{"id":"a","valid":false,"input":"bad","decoded":{"type":"int"},"clause":"c","spec_ref":"s"}]}'
-        assert_reject "unknown property" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int"},"clause":"c","spec_ref":"s","spec-ref":"typo"}]}'
-        assert_reject "duplicate id in a surface" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int"},"clause":"c","spec_ref":"s"},{"id":"a","valid":true,"input":"long","decoded":{"type":"long"},"clause":"c","spec_ref":"s"}]}'
-        assert_reject "decoded decimal typo (precison)" '{"cases":[{"id":"a","valid":true,"input":"decimal(9,2)","decoded":{"type":"decimal","precison":9,"scale":2},"clause":"c","spec_ref":"s"}]}'
-        assert_reject "decoded fixed carrying len not length" '{"cases":[{"id":"a","valid":true,"input":"fixed[16]","decoded":{"type":"fixed","len":16},"clause":"c","spec_ref":"s"}]}'
-        assert_reject "decoded unknown type name" '{"cases":[{"id":"a","valid":true,"input":"x","decoded":{"type":"notatype"},"clause":"c","spec_ref":"s"}]}'
-        assert_reject "decoded simple type with extra key" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int","precision":9},"clause":"c","spec_ref":"s"}]}'
+      run: make validate
+    - name: Validator rejects malformed fixtures
+      run: make test
