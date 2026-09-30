@@ -17,6 +17,8 @@
 
 SHELL := bash
 PYTHON ?= python3
+PRETTIER := npx --yes prettier@3.9.9
+FIXTURES := "table-spec/**/*.json"
 VENV := .venv
 VENV_PYTHON := $(VENV)/bin/python
 
@@ -33,10 +35,10 @@ $(VENV_PYTHON): dev/requirements.txt
 install: $(VENV_PYTHON) ## Create .venv with the dev/ tooling dependencies
 
 format: ## Format the JSON fixtures in place
-	$(PYTHON) dev/format-fixtures.py
+	$(PRETTIER) --log-level warn --write $(FIXTURES)
 
 lint: ## Fail if any JSON fixture is not formatted
-	$(PYTHON) dev/format-fixtures.py --check
+	$(PRETTIER) --check $(FIXTURES)
 
 validate: $(VENV_PYTHON) ## Validate every cases.json against the JSON Schemas
 	$(VENV_PYTHON) dev/validate-fixtures.py
