@@ -21,18 +21,19 @@ PRETTIER := npx --yes prettier@3.9.9
 FIXTURES := "table-spec/**/*.json"
 VENV := .venv
 VENV_PYTHON := $(VENV)/bin/python
+VENV_STAMP := $(VENV)/.installed
 
 .PHONY: help install format lint validate test license check clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-10s %s\n", $$1, $$2}'
 
-$(VENV_PYTHON): dev/requirements.txt
+$(VENV_STAMP): dev/requirements.txt
 	$(PYTHON) -m venv $(VENV)
 	$(VENV_PYTHON) -m pip install --quiet -r dev/requirements.txt
-	@touch $(VENV_PYTHON)
+	@touch $(VENV_STAMP)
 
-install: $(VENV_PYTHON) ## Create .venv with the dev/ tooling dependencies
+install: $(VENV_STAMP) ## Create .venv with the dev/ tooling dependencies
 
 format: ## Format the JSON fixtures in place
 	$(PRETTIER) --log-level warn --write $(FIXTURES)
@@ -40,12 +41,12 @@ format: ## Format the JSON fixtures in place
 lint: ## Fail if any JSON fixture is not formatted
 	$(PRETTIER) --check $(FIXTURES)
 
-validate: $(VENV_PYTHON) ## Validate every cases.json against the JSON Schemas
+validate: $(VENV_STAMP) ## Validate every cases.json against the JSON Schemas
 	$(VENV_PYTHON) dev/validate-fixtures.py
 
 # Each malformed fixture is written into a scratch table-spec tree; the validator
 # must reject every one.
-test: $(VENV_PYTHON) ## Check the validator rejects malformed fixtures
+test: $(VENV_STAMP) ## Check the validator rejects malformed fixtures
 	@set -e; \
 	assert_reject() { \
 	  d="$$(mktemp -d)"; \
