@@ -54,6 +54,11 @@ repository to a commit, runs the surfaces it opts into, and bumps that pin
 deliberately. There is no central conformance gate and no pass/fail matrix
 across implementations.
 
+## Runners
+
+Reference runners that check each implementation against the fixtures live in
+[`runners/`](runners/README.md), with a per-language support matrix and CI status.
+
 ## Contributing
 
 TODO: `CONTRIBUTING.md`, covering repository layout, fixture format, and how to

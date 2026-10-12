@@ -1,0 +1,16 @@
+{
+  "surfaces": [
+    {
+      "name": "types",
+      "path": "table-spec/types",
+      "description": "Type decoding: each spec type parsed in isolation.",
+      "subsurfaces": ["primitive", "variant", "nested", "geospatial"]
+    },
+    {
+      "name": "schema",
+      "path": "table-spec/schema",
+      "description": "Schema decoding: the schema document, its id spaces and field tree.",
+      "subsurfaces": ["core", "unknown"]
+    }
+  ]
+}

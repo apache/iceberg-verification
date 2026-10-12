@@ -26,3 +26,7 @@ node_modules/**
 # Apache header; they are covered by the repository LICENSE and NOTICE at the root.
 **/*.json
 **/*.jsonl
+
+# Vendored Gradle wrapper (upstream Gradle files, no ASF header).
+**/gradle/wrapper/gradle-wrapper.properties
+**/gradle/wrapper/gradle-wrapper.jar
