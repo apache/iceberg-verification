@@ -268,6 +268,12 @@ to you, but it has to cover:
   It has to settle the comparison rule and how a failure is labeled. Pseudocode
   is one way to do that and prose is another.
 
+## Before opening a pull request
+
+Run `make install` once to install the tooling, then `make format` to format the
+fixtures with Prettier. CI runs `make lint` and rejects any `cases.json` that is
+not formatted. `make check` runs every check CI does.
+
 ## License headers
 
 Please do not add license headers to fixture files. They are test data, and a

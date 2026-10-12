@@ -19,6 +19,8 @@
 LICENSE
 NOTICE
 lib
+.venv/**
+node_modules/**
 
 # Fixture data and JSON Schemas have no comment syntax, so they cannot carry an
 # Apache header; they are covered by the repository LICENSE and NOTICE at the root.

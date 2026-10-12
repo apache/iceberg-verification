@@ -1,0 +1,10 @@
+{
+  "name": "iceberg-verification",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "prettier": "3.9.9"
+  }
+}
