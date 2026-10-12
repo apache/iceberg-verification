@@ -7,18 +7,8 @@
         "type": "struct",
         "schema-id": 0,
         "fields": [
-          {
-            "id": 1,
-            "name": "id",
-            "required": true,
-            "type": "long"
-          },
-          {
-            "id": 2,
-            "name": "future",
-            "required": false,
-            "type": "unknown"
-          }
+          { "id": 1, "name": "id", "required": true, "type": "long" },
+          { "id": 2, "name": "future", "required": false, "type": "unknown" }
         ]
       },
       "decoded": {
@@ -37,18 +27,8 @@
         "type": "struct",
         "schema-id": 0,
         "fields": [
-          {
-            "id": 1,
-            "name": "id",
-            "required": true,
-            "type": "long"
-          },
-          {
-            "id": 2,
-            "name": "future",
-            "required": true,
-            "type": "unknown"
-          }
+          { "id": 1, "name": "id", "required": true, "type": "long" },
+          { "id": 2, "name": "future", "required": true, "type": "unknown" }
         ]
       }
     }

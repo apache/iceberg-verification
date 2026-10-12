@@ -17,14 +17,14 @@
 
 SHELL := bash
 PYTHON ?= python3
-PRETTIER := npx prettier
-FIXTURES := "table-spec/**/*.json"
+PRETTIER := npx --no-install prettier
+FIXTURES := "table-spec/**/cases.json"
 VENV := .venv
 VENV_PYTHON := $(VENV)/bin/python
 VENV_STAMP := $(VENV)/.installed
 NODE_STAMP := node_modules/.installed
 
-.PHONY: help install format lint validate test license check clean
+.PHONY: help install format lint validate selftest license check clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -49,20 +49,34 @@ lint: $(NODE_STAMP) ## Fail if any JSON fixture is not formatted
 validate: $(VENV_STAMP) ## Validate every cases.json against the JSON Schemas
 	$(VENV_PYTHON) dev/validate-fixtures.py
 
-# Each malformed fixture is written into a scratch table-spec tree; the validator
-# must reject every one.
-test: $(VENV_STAMP) ## Check the validator rejects malformed fixtures
+# Each fixture is written into a scratch table-spec tree. The well-formed one must
+# be accepted, so a validator that cannot run at all fails here; every malformed
+# one must be rejected by the validator itself (exit 1 and a FAILED report), not
+# by a crash.
+selftest: $(VENV_STAMP) ## Check the validator accepts a good fixture and rejects malformed ones
 	@set -e; \
-	assert_reject() { \
+	run_validator() { \
 	  d="$$(mktemp -d)"; \
 	  mkdir -p "$$d/table-spec/types/x"; \
-	  printf '%s' "$$2" > "$$d/table-spec/types/x/cases.json"; \
-	  if $(VENV_PYTHON) dev/validate-fixtures.py "$$d" >/dev/null 2>&1; then \
-	    echo "FAILED: validator accepted a malformed fixture ($$1)"; rm -rf "$$d"; exit 1; \
-	  fi; \
-	  echo "ok: rejected ($$1)"; \
+	  printf '%s' "$$1" > "$$d/table-spec/types/x/cases.json"; \
+	  rc=0; out="$$($(VENV_PYTHON) dev/validate-fixtures.py "$$d" 2>&1)" || rc=$$?; \
 	  rm -rf "$$d"; \
 	}; \
+	assert_accept() { \
+	  run_validator "$$2"; \
+	  if [ "$$rc" -ne 0 ]; then \
+	    echo "FAILED: validator rejected a well-formed fixture ($$1)"; echo "$$out"; exit 1; \
+	  fi; \
+	  echo "ok: accepted ($$1)"; \
+	}; \
+	assert_reject() { \
+	  run_validator "$$2"; \
+	  if [ "$$rc" -ne 1 ] || ! grep -q '^FAILED: ' <<< "$$out"; then \
+	    echo "FAILED: validator did not reject a malformed fixture ($$1), exit code $$rc"; echo "$$out"; exit 1; \
+	  fi; \
+	  echo "ok: rejected ($$1)"; \
+	}; \
+	assert_accept "well-formed case" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int"},"clause":"c","spec_ref":"s"}]}'; \
 	assert_reject "valid:true with no decoded" '{"cases":[{"id":"a","valid":true,"input":"int","clause":"c","spec_ref":"s"}]}'; \
 	assert_reject "valid:false carrying decoded" '{"cases":[{"id":"a","valid":false,"input":"bad","decoded":{"type":"int"},"clause":"c","spec_ref":"s"}]}'; \
 	assert_reject "unknown property" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int"},"clause":"c","spec_ref":"s","spec-ref":"typo"}]}'; \
@@ -75,7 +89,7 @@ test: $(VENV_STAMP) ## Check the validator rejects malformed fixtures
 license: ## Check ASF license headers with Apache RAT
 	dev/check-license
 
-check: lint validate test license ## Run all checks
+check: lint validate selftest license ## Run all checks
 
 clean: ## Remove .venv and node_modules
 	rm -rf $(VENV) node_modules

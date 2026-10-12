@@ -270,9 +270,9 @@ to you, but it has to cover:
 
 ## Before opening a pull request
 
-All fixtures must be formatted by Prettier by running `make format`.
-
-Run `make install` to install the necessary dependencies.
+Run `make install` once to install the tooling, then `make format` to format the
+fixtures with Prettier. CI runs `make lint` and rejects any `cases.json` that is
+not formatted. `make check` runs every check CI does.
 
 ## License headers
 
