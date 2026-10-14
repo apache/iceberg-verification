@@ -1,0 +1,75 @@
+{
+  "cases": [
+    {
+      "id": "truncate-int-width-10",
+      "valid": true,
+      "input": {
+        "transform": "truncate[10]",
+        "source_type": "int",
+        "values": [null, 0, 1, 5, 9, 10, 11, -1, -5, -10, -11]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, 0, 0, 0, 0, 10, 10, -10, -10, -10, -20] },
+      "clause": "Truncate Transform Details: int v - (v % W), with positive remainders for negative values",
+      "spec_ref": "format/spec.md#truncate-transform-details"
+    },
+    {
+      "id": "truncate-long-width-10",
+      "valid": true,
+      "input": {
+        "transform": "truncate[10]",
+        "source_type": "long",
+        "values": [null, "0", "1", "5", "9", "10", "11", "-1", "-5", "-10", "-11"]
+      },
+      "decoded": {
+        "result_types": ["long"],
+        "values": [null, "0", "0", "0", "0", "10", "10", "-10", "-10", "-10", "-20"]
+      },
+      "clause": "Truncate Transform Details: long v - (v % W), with positive remainders for negative values",
+      "spec_ref": "format/spec.md#truncate-transform-details"
+    },
+    {
+      "id": "truncate-decimal-9-2-width-10",
+      "valid": true,
+      "input": {
+        "transform": "truncate[10]",
+        "source_type": "decimal(9, 2)",
+        "values": [null, "12.34", "12.30", "12.29", "0.05", "-0.05"]
+      },
+      "decoded": { "result_types": ["decimal(9, 2)"], "values": [null, "12.30", "12.30", "12.20", "0.00", "-0.10"] },
+      "clause": "Truncate Transform Details: decimal width is applied using the scale of the decimal column and remainders are positive",
+      "spec_ref": "format/spec.md#truncate-transform-details"
+    },
+    {
+      "id": "truncate-decimal-9-2-width-50",
+      "valid": true,
+      "input": { "transform": "truncate[50]", "source_type": "decimal(9, 2)", "values": [null, "10.65"] },
+      "decoded": { "result_types": ["decimal(9, 2)"], "values": [null, "10.50"] },
+      "clause": "Truncate Transform Details example: W=50, scale=2 truncates 10.65 to 10.50",
+      "spec_ref": "format/spec.md#truncate-transform-details"
+    },
+    {
+      "id": "truncate-string-length-3",
+      "valid": true,
+      "input": {
+        "transform": "truncate[3]",
+        "source_type": "string",
+        "values": [null, "", "ice", "iceberg", "a😀bcd", "😀😀😀😀"]
+      },
+      "decoded": { "result_types": ["string"], "values": [null, "", "ice", "ice", "a😀b", "😀😀😀"] },
+      "clause": "Truncate Transform Details: strings are truncated to no more than L Unicode code points",
+      "spec_ref": "format/spec.md#truncate-transform-details"
+    },
+    {
+      "id": "truncate-binary-length-3",
+      "valid": true,
+      "input": {
+        "transform": "truncate[3]",
+        "source_type": "binary",
+        "values": [null, "", "0001", "000102", "0001020304", "F09F9880"]
+      },
+      "decoded": { "result_types": ["binary"], "values": [null, "", "0001", "000102", "000102", "F09F98"] },
+      "clause": "Truncate Transform Details: binary values have no assumed encoding and are truncated to L bytes",
+      "spec_ref": "format/spec.md#truncate-transform-details"
+    }
+  ]
+}

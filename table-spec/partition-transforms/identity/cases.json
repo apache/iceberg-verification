@@ -1,0 +1,207 @@
+{
+  "cases": [
+    {
+      "id": "identity-unknown",
+      "valid": true,
+      "input": { "transform": "identity", "source_type": "unknown", "values": [null] },
+      "decoded": { "result_types": ["unknown"], "values": [null] },
+      "clause": "Partition Transforms: identity is the source value, unmodified; null propagation",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-boolean",
+      "valid": true,
+      "input": { "transform": "identity", "source_type": "boolean", "values": [null, false, true] },
+      "decoded": { "result_types": ["boolean"], "values": [null, false, true] },
+      "clause": "Partition Transforms: identity is the source value, unmodified",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-int",
+      "valid": true,
+      "input": { "transform": "identity", "source_type": "int", "values": [null, -34, 0, 34] },
+      "decoded": { "result_types": ["int"], "values": [null, -34, 0, 34] },
+      "clause": "Partition Transforms: identity is the source value, unmodified",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-long",
+      "valid": true,
+      "input": {
+        "transform": "identity",
+        "source_type": "long",
+        "values": [null, "-9223372036854775808", "0", "9223372036854775807"]
+      },
+      "decoded": { "result_types": ["long"], "values": [null, "-9223372036854775808", "0", "9223372036854775807"] },
+      "clause": "Partition Transforms: identity is the source value, unmodified",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-float",
+      "valid": true,
+      "input": { "transform": "identity", "source_type": "float", "values": [null, -1.5, 0, 1.5] },
+      "decoded": { "result_types": ["float"], "values": [null, -1.5, 0, 1.5] },
+      "clause": "Partition Transforms: identity is the source value, unmodified",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-double",
+      "valid": true,
+      "input": { "transform": "identity", "source_type": "double", "values": [null, -1.25, 0, 1.25] },
+      "decoded": { "result_types": ["double"], "values": [null, -1.25, 0, 1.25] },
+      "clause": "Partition Transforms: identity is the source value, unmodified",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-decimal-9-2",
+      "valid": true,
+      "input": { "transform": "identity", "source_type": "decimal(9, 2)", "values": [null, "-14.20", "0.00", "14.20"] },
+      "decoded": { "result_types": ["decimal(9, 2)"], "values": [null, "-14.20", "0.00", "14.20"] },
+      "clause": "Partition Transforms: identity preserves the decimal value, scale, and source type",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-date",
+      "valid": true,
+      "input": {
+        "transform": "identity",
+        "source_type": "date",
+        "values": [null, "1969-12-31", "1970-01-01", "2000-02-29"]
+      },
+      "decoded": { "result_types": ["date"], "values": [null, "1969-12-31", "1970-01-01", "2000-02-29"] },
+      "clause": "Partition Transforms: identity is the source value, unmodified",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-time",
+      "valid": true,
+      "input": {
+        "transform": "identity",
+        "source_type": "time",
+        "values": [null, "00:00:00", "22:31:08", "22:31:08.000001"]
+      },
+      "decoded": { "result_types": ["time"], "values": [null, "00:00:00", "22:31:08", "22:31:08.000001"] },
+      "clause": "Partition Transforms: identity is the source value, unmodified",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-timestamp",
+      "valid": true,
+      "input": {
+        "transform": "identity",
+        "source_type": "timestamp",
+        "values": [null, "1969-12-31T23:59:59.999999", "1970-01-01T00:00:00", "2017-11-16T22:31:08.000001"]
+      },
+      "decoded": {
+        "result_types": ["timestamp"],
+        "values": [null, "1969-12-31T23:59:59.999999", "1970-01-01T00:00:00", "2017-11-16T22:31:08.000001"]
+      },
+      "clause": "Partition Transforms: identity is the source value, unmodified",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-timestamptz",
+      "valid": true,
+      "input": {
+        "transform": "identity",
+        "source_type": "timestamptz",
+        "values": [null, "1970-01-01T00:00:00Z", "2017-11-16T14:31:08.000001-08:00", "2017-11-16T22:31:08.000001Z"]
+      },
+      "decoded": {
+        "result_types": ["timestamptz"],
+        "values": [null, "1970-01-01T00:00:00Z", "2017-11-16T14:31:08.000001-08:00", "2017-11-16T22:31:08.000001Z"]
+      },
+      "clause": "Partition Transforms: identity preserves timestamp-with-zone instants and source type",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-timestamp-ns",
+      "valid": true,
+      "input": {
+        "transform": "identity",
+        "source_type": "timestamp_ns",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999999",
+          "1970-01-01T00:00:00.000000000",
+          "2017-11-16T22:31:08.000001001"
+        ]
+      },
+      "decoded": {
+        "result_types": ["timestamp_ns"],
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999999",
+          "1970-01-01T00:00:00.000000000",
+          "2017-11-16T22:31:08.000001001"
+        ]
+      },
+      "clause": "Partition Transforms: identity preserves nanosecond precision and source type",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-timestamptz-ns",
+      "valid": true,
+      "input": {
+        "transform": "identity",
+        "source_type": "timestamptz_ns",
+        "values": [
+          null,
+          "1970-01-01T00:00:00.000000000Z",
+          "2017-11-16T14:31:08.000001001-08:00",
+          "2017-11-16T22:31:08.000001001Z"
+        ]
+      },
+      "decoded": {
+        "result_types": ["timestamptz_ns"],
+        "values": [
+          null,
+          "1970-01-01T00:00:00.000000000Z",
+          "2017-11-16T14:31:08.000001001-08:00",
+          "2017-11-16T22:31:08.000001001Z"
+        ]
+      },
+      "clause": "Partition Transforms: identity preserves nanosecond timestamp-with-zone instants and source type",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-string",
+      "valid": true,
+      "input": { "transform": "identity", "source_type": "string", "values": [null, "", "iceberg", "a😀雪"] },
+      "decoded": { "result_types": ["string"], "values": [null, "", "iceberg", "a😀雪"] },
+      "clause": "Partition Transforms: identity is the source value, unmodified",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-uuid",
+      "valid": true,
+      "input": {
+        "transform": "identity",
+        "source_type": "uuid",
+        "values": [null, "00000000-0000-0000-0000-000000000000", "f79c3e09-677c-4bbd-a479-3f349cb785e7"]
+      },
+      "decoded": {
+        "result_types": ["uuid"],
+        "values": [null, "00000000-0000-0000-0000-000000000000", "f79c3e09-677c-4bbd-a479-3f349cb785e7"]
+      },
+      "clause": "Partition Transforms: identity is the source value, unmodified",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-fixed-4",
+      "valid": true,
+      "input": { "transform": "identity", "source_type": "fixed[4]", "values": [null, "00010203", "FFFFFFFF"] },
+      "decoded": { "result_types": ["fixed[4]"], "values": [null, "00010203", "FFFFFFFF"] },
+      "clause": "Partition Transforms: identity preserves fixed bytes and source type",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "identity-binary",
+      "valid": true,
+      "input": { "transform": "identity", "source_type": "binary", "values": [null, "", "00010203", "FFFFFFFF"] },
+      "decoded": { "result_types": ["binary"], "values": [null, "", "00010203", "FFFFFFFF"] },
+      "clause": "Partition Transforms: identity preserves binary bytes and source type",
+      "spec_ref": "format/spec.md#partition-transforms"
+    }
+  ]
+}

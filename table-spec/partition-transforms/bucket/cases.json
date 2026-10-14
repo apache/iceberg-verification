@@ -1,0 +1,148 @@
+{
+  "cases": [
+    {
+      "id": "bucket-int-100",
+      "valid": true,
+      "input": { "transform": "bucket[100]", "source_type": "int", "values": [null, 34] },
+      "decoded": { "result_types": ["int"], "values": [null, 79] },
+      "clause": "Bucket Transform Details and Appendix B: int hash reference vector",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-long-100",
+      "valid": true,
+      "input": { "transform": "bucket[100]", "source_type": "long", "values": [null, "34"] },
+      "decoded": { "result_types": ["int"], "values": [null, 79] },
+      "clause": "Appendix B: integer and long hash results must be identical for all integer values",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-decimal-9-2-100",
+      "valid": true,
+      "input": { "transform": "bucket[100]", "source_type": "decimal(9, 2)", "values": [null, "14.20"] },
+      "decoded": { "result_types": ["int"], "values": [null, 59] },
+      "clause": "Appendix B: decimal 14.20 hashes from its minimum two's-complement big-endian unscaled value; bucket discards the sign bit",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-decimal-10-3-100",
+      "valid": true,
+      "input": { "transform": "bucket[100]", "source_type": "decimal(10, 3)", "values": [null, "1.420"] },
+      "decoded": { "result_types": ["int"], "values": [null, 59] },
+      "clause": "Appendix B: decimal hashes use the unscaled value and hash results are not dependent on decimal scale",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-date-100",
+      "valid": true,
+      "input": { "transform": "bucket[100]", "source_type": "date", "values": [null, "2017-11-16"] },
+      "decoded": { "result_types": ["int"], "values": [null, 26] },
+      "clause": "Appendix B: date hash reference vector; bucket discards the sign bit",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-time-100",
+      "valid": true,
+      "input": { "transform": "bucket[100]", "source_type": "time", "values": [null, "22:31:08"] },
+      "decoded": { "result_types": ["int"], "values": [null, 59] },
+      "clause": "Appendix B: time hash reference vector; bucket discards the sign bit",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-timestamp-100",
+      "valid": true,
+      "input": {
+        "transform": "bucket[100]",
+        "source_type": "timestamp",
+        "values": [null, "2017-11-16T22:31:08", "2017-11-16T22:31:08.000001"]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, 7, 38] },
+      "clause": "Appendix B: timestamp hash reference vectors at whole-second and microsecond precision",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-timestamptz-100",
+      "valid": true,
+      "input": {
+        "transform": "bucket[100]",
+        "source_type": "timestamptz",
+        "values": [
+          null,
+          "2017-11-16T14:31:08-08:00",
+          "2017-11-16T22:31:08Z",
+          "2017-11-16T14:31:08.000001-08:00",
+          "2017-11-16T22:31:08.000001Z"
+        ]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, 7, 7, 38, 38] },
+      "clause": "Appendix B: timestamptz hashes microseconds from the Unix epoch, so equivalent instants hash identically",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-timestamp-ns-100",
+      "valid": true,
+      "input": {
+        "transform": "bucket[100]",
+        "source_type": "timestamp_ns",
+        "values": [null, "2017-11-16T22:31:08", "2017-11-16T22:31:08.000001001", "2017-11-16T22:31:08.000001999"]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, 7, 38, 38] },
+      "clause": "Appendix B: nanosecond timestamps must be converted to microsecond precision before hashing",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-timestamptz-ns-100",
+      "valid": true,
+      "input": {
+        "transform": "bucket[100]",
+        "source_type": "timestamptz_ns",
+        "values": [
+          null,
+          "2017-11-16T14:31:08-08:00",
+          "2017-11-16T22:31:08Z",
+          "2017-11-16T14:31:08.000001001-08:00",
+          "2017-11-16T14:31:08.000001999-08:00"
+        ]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, 7, 7, 38, 38] },
+      "clause": "Appendix B: zoned nanosecond timestamps hash their instant after conversion to microsecond precision",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-string-100",
+      "valid": true,
+      "input": { "transform": "bucket[100]", "source_type": "string", "values": [null, "iceberg"] },
+      "decoded": { "result_types": ["int"], "values": [null, 89] },
+      "clause": "Appendix B: string UTF-8 hash reference vector",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-uuid-100",
+      "valid": true,
+      "input": {
+        "transform": "bucket[100]",
+        "source_type": "uuid",
+        "values": [null, "f79c3e09-677c-4bbd-a479-3f349cb785e7"]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, 40] },
+      "clause": "Appendix B: UUID big-endian byte hash reference vector",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-fixed-4-100",
+      "valid": true,
+      "input": { "transform": "bucket[100]", "source_type": "fixed[4]", "values": [null, "00010203"] },
+      "decoded": { "result_types": ["int"], "values": [null, 41] },
+      "clause": "Appendix B: fixed bytes hash reference vector; bucket discards the sign bit",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    },
+    {
+      "id": "bucket-binary-100",
+      "valid": true,
+      "input": { "transform": "bucket[100]", "source_type": "binary", "values": [null, "00010203"] },
+      "decoded": { "result_types": ["int"], "values": [null, 41] },
+      "clause": "Appendix B: binary bytes hash reference vector, identical to fixed for the same bytes",
+      "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
+    }
+  ]
+}

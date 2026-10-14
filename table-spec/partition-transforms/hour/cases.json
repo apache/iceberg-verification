@@ -1,0 +1,84 @@
+{
+  "cases": [
+    {
+      "id": "hour-timestamp",
+      "valid": true,
+      "input": {
+        "transform": "hour",
+        "source_type": "timestamp",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999",
+          "1970-01-01T00:00:00",
+          "2000-02-29T23:59:59.999999",
+          "2000-03-01T00:00:00",
+          "2017-12-01T10:12:55.038194"
+        ]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, -1, 0, 264407, 264408, 420034] },
+      "clause": "Partition Transforms: extract a timestamp hour, as hours from 1970-01-01 00:00:00",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "hour-timestamptz",
+      "valid": true,
+      "input": {
+        "transform": "hour",
+        "source_type": "timestamptz",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999Z",
+          "1970-01-01T00:00:00Z",
+          "2000-02-29T23:59:59.999999Z",
+          "2000-03-01T00:00:00Z",
+          "2017-12-01T10:12:55.038194Z",
+          "2017-12-01T12:12:55.038194+02:00",
+          "2017-11-30T23:30:00-10:00"
+        ]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, -1, 0, 264407, 264408, 420034, 420034, 420033] },
+      "clause": "Partition Transforms: timestamp-with-zone hour uses the instant across equivalent offsets and a local-date crossing",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "hour-timestamp-ns",
+      "valid": true,
+      "input": {
+        "transform": "hour",
+        "source_type": "timestamp_ns",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999999",
+          "1970-01-01T00:00:00.000000000",
+          "2000-02-29T23:59:59.999999999",
+          "2000-03-01T00:00:00.000000000",
+          "2017-12-01T10:12:55.038194789"
+        ]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, -1, 0, 264407, 264408, 420034] },
+      "clause": "Partition Transforms: extract a nanosecond timestamp hour, as hours from the Unix epoch",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "hour-timestamptz-ns",
+      "valid": true,
+      "input": {
+        "transform": "hour",
+        "source_type": "timestamptz_ns",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999999Z",
+          "1970-01-01T00:00:00.000000000Z",
+          "2000-02-29T23:59:59.999999999Z",
+          "2000-03-01T00:00:00.000000000Z",
+          "2017-12-01T10:12:55.038194789Z",
+          "2017-12-01T12:12:55.038194789+02:00",
+          "2017-11-30T23:30:00.000000001-10:00"
+        ]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, -1, 0, 264407, 264408, 420034, 420034, 420033] },
+      "clause": "Partition Transforms: zoned nanosecond timestamp hour uses the instant across offsets",
+      "spec_ref": "format/spec.md#partition-transforms"
+    }
+  ]
+}

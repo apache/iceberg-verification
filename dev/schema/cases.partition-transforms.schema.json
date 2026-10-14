@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iceberg.apache.org/verification/cases.partition-transforms.schema.json",
+  "title": "Conformance cases (partition-transforms surface extension)",
+  "description": "Extra structural constraints for table-spec/partition-transforms. Applied on top of cases.base.schema.json by dev/validate-fixtures.py.",
+  "type": "object",
+  "required": ["cases"],
+  "additionalProperties": false,
+  "properties": {
+    "cases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "required": ["id", "valid", "input", "decoded", "clause", "spec_ref"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "valid": { "const": true },
+        "input": { "$ref": "#/$defs/input" },
+        "decoded": { "$ref": "#/$defs/decoded" },
+        "clause": { "type": "string", "minLength": 1 },
+        "spec_ref": { "type": "string", "minLength": 1 },
+        "normative_level": { "enum": ["must", "should"] }
+      }
+    },
+    "input": {
+      "type": "object",
+      "required": ["transform", "source_type", "values"],
+      "additionalProperties": false,
+      "properties": {
+        "transform": {
+          "type": "string",
+          "pattern": "^(identity|bucket\\[[0-9]+\\]|truncate\\[[0-9]+\\]|year|month|day|hour|void)$"
+        },
+        "source_type": { "$ref": "#/$defs/typeName" },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/value" }
+        }
+      }
+    },
+    "decoded": {
+      "type": "object",
+      "required": ["result_types", "values"],
+      "additionalProperties": false,
+      "properties": {
+        "result_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/typeName" }
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/value" }
+        }
+      }
+    },
+    "typeName": {
+      "type": "string",
+      "anyOf": [
+        {
+          "enum": [
+            "unknown",
+            "boolean",
+            "int",
+            "long",
+            "float",
+            "double",
+            "date",
+            "time",
+            "timestamp",
+            "timestamptz",
+            "timestamp_ns",
+            "timestamptz_ns",
+            "string",
+            "uuid",
+            "binary",
+            "geometry",
+            "geography"
+          ]
+        },
+        { "pattern": "^decimal\\([1-9][0-9]*, [0-9]+\\)$" },
+        { "pattern": "^fixed\\[[1-9][0-9]*\\]$" },
+        { "pattern": "^geometry\\([^()]+\\)$" },
+        { "pattern": "^geography\\([^()]+, [^()]+\\)$" }
+      ]
+    },
+    "value": {
+      "type": ["null", "boolean", "number", "string"]
+    }
+  }
+}
