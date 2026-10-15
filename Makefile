@@ -104,6 +104,9 @@ selftest: $(VENV_STAMP) ## Check the validator accepts a good fixture and reject
 	  if [ "$$rc" -ne 1 ] || ! grep -q '^FAILED: ' <<< "$$out"; then \
 	    echo "FAILED: validator did not reject a malformed fixture ($$1), exit code $$rc"; echo "$$out"; exit 1; \
 	  fi; \
+	  if [ -n "$$3" ] && ! grep -Fq "$$3" <<< "$$out"; then \
+	    echo "FAILED: validator report did not contain '$$3' ($$1)"; echo "$$out"; exit 1; \
+	  fi; \
 	  echo "ok: rejected ($$1)"; \
 	}; \
 	assert_partition_transform_accept "well-formed partition transform" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[34,null]},"decoded":{"result_types":["int"],"values":[79,null]},"clause":"c","spec_ref":"s"}]}'; \
@@ -116,6 +119,8 @@ selftest: $(VENV_STAMP) ## Check the validator accepts a good fixture and reject
 	assert_partition_transform_reject "wrong day result type" '{"cases":[{"id":"a","valid":true,"input":{"transform":"day","source_type":"date","values":["1970-01-01",null]},"decoded":{"result_types":["int"],"values":["1970-01-01",null]},"clause":"c","spec_ref":"s"}]}'; \
 	assert_partition_transform_reject "identity value mismatch" '{"cases":[{"id":"a","valid":true,"input":{"transform":"identity","source_type":"string","values":["a",null]},"decoded":{"result_types":["string"],"values":["b",null]},"clause":"c","spec_ref":"s"}]}'; \
 	assert_partition_transform_reject "void missing an allowed result type" '{"cases":[{"id":"a","valid":true,"input":{"transform":"void","source_type":"string","values":["a",null]},"decoded":{"result_types":["int"],"values":[null,null]},"clause":"c","spec_ref":"s"}]}'; \
+	assert_partition_transform_reject "object in partition transform result types" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[34,null]},"decoded":{"result_types":["int",{}],"values":[79,null]},"clause":"c","spec_ref":"s"}]}' 'cases/0/decoded/result_types/1'; \
+	assert_partition_transform_reject "nested list in partition transform result types" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[34,null]},"decoded":{"result_types":[[]],"values":[79,null]},"clause":"c","spec_ref":"s"}]}' 'cases/0/decoded/result_types/0'; \
 	assert_partition_transform_reject "partition transform misspelled field" '{"cases":[{"id":"a","valid":true,"input":{"transform":"identity","source-type":"int","values":[1,null]},"decoded":{"result_types":["int"],"values":[1,null]},"clause":"c","spec_ref":"s"}]}'
 
 license: ## Check ASF license headers with Apache RAT

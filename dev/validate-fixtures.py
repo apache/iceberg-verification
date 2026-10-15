@@ -208,7 +208,11 @@ def _partition_transform_errors(path, doc):
         elif transform_family == "void" and isinstance(source_type, str):
             required_result_types = {source_type, "int"}
 
-        if required_result_types is not None and isinstance(result_types, list):
+        if (
+            required_result_types is not None
+            and isinstance(result_types, list)
+            and all(isinstance(result_type, str) for result_type in result_types)
+        ):
             if set(result_types) != required_result_types:
                 errors.append(
                     f"{label}: decoded.result_types must be exactly "
