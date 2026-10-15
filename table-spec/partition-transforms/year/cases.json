@@ -1,0 +1,96 @@
+{
+  "cases": [
+    {
+      "id": "year-date",
+      "valid": true,
+      "input": {
+        "transform": "year",
+        "source_type": "date",
+        "values": [null, "1969-12-31", "1970-01-01", "2000-02-29", "2000-03-01", "2017-12-01"]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, -1, 0, 30, 30, 47] },
+      "clause": "Partition Transforms: extract a date year, as years from 1970",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "year-timestamp",
+      "valid": true,
+      "input": {
+        "transform": "year",
+        "source_type": "timestamp",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999",
+          "1970-01-01T00:00:00",
+          "2000-02-29T23:59:59.999999",
+          "2000-03-01T00:00:00",
+          "2017-12-01T10:12:55.038194"
+        ]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, -1, 0, 30, 30, 47] },
+      "clause": "Partition Transforms: extract a timestamp year, as years from 1970",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "year-timestamptz",
+      "valid": true,
+      "input": {
+        "transform": "year",
+        "source_type": "timestamptz",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999Z",
+          "1970-01-01T00:00:00Z",
+          "2000-02-29T23:59:59.999999Z",
+          "2000-03-01T00:00:00Z",
+          "2017-12-01T10:12:55.038194Z",
+          "2017-12-01T12:12:55.038194+02:00",
+          "2017-11-30T23:30:00-10:00"
+        ]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, -1, 0, 30, 30, 47, 47, 47] },
+      "clause": "Partition Transforms: timestamp-with-zone year uses the instant; equivalent instants and an offset date crossing are included",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "year-timestamp-ns",
+      "valid": true,
+      "input": {
+        "transform": "year",
+        "source_type": "timestamp_ns",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999999",
+          "1970-01-01T00:00:00.000000000",
+          "2000-02-29T23:59:59.999999999",
+          "2000-03-01T00:00:00.000000000",
+          "2017-12-01T10:12:55.038194789"
+        ]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, -1, 0, 30, 30, 47] },
+      "clause": "Partition Transforms: extract a nanosecond timestamp year, as years from 1970",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "year-timestamptz-ns",
+      "valid": true,
+      "input": {
+        "transform": "year",
+        "source_type": "timestamptz_ns",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999999Z",
+          "1970-01-01T00:00:00.000000000Z",
+          "2000-02-29T23:59:59.999999999Z",
+          "2000-03-01T00:00:00.000000000Z",
+          "2017-12-01T10:12:55.038194789Z",
+          "2017-12-01T12:12:55.038194789+02:00",
+          "2017-11-30T23:30:00.000000001-10:00"
+        ]
+      },
+      "decoded": { "result_types": ["int"], "values": [null, -1, 0, 30, 30, 47, 47, 47] },
+      "clause": "Partition Transforms: zoned nanosecond timestamp year uses the instant across offsets",
+      "spec_ref": "format/spec.md#partition-transforms"
+    }
+  ]
+}
