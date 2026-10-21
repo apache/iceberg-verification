@@ -26,3 +26,7 @@ node_modules/**
 # Apache header; they are covered by the repository LICENSE and NOTICE at the root.
 **/*.json
 **/*.jsonl
+
+# Avro container files embed their schema as JSON text in the file header, so RAT
+# reads them as text. They are binary fixture data and cannot carry a header either.
+**/*.avro
