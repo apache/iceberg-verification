@@ -23,6 +23,14 @@
       "data-file-format": "parquet",
       "metadata": "v1/partitioned-parquet-data/metadata/v3.metadata.json",
       "description": "Identity partition on category and a day transform on event_ts. Two snapshots, one data file per partition, three rows."
+    },
+    {
+      "name": "v2/partitioned-parquet-data",
+      "format-version": 2,
+      "written-by": "Iceberg Java 1.11.0",
+      "data-file-format": "parquet",
+      "metadata": "v2/partitioned-parquet-data/metadata/v3.metadata.json",
+      "description": "Identity partition on category and a day transform on event_ts. Two snapshots, one data file per partition, three rows."
     }
   ]
 }

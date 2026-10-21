@@ -19,22 +19,25 @@
 
 # Reference tables
 
-This directory hosts whole Iceberg tables reference fixtures.
-Surfaces reference a table by path and hold their own expected
-values, so one table can support several surfaces without being copied.
+This directory holds complete Iceberg tables: metadata, manifest lists,
+manifests, and Parquet data files. Tables are grouped by format version.
 
-Tables are grouped by format version.
+## Assertion
+
+```
+scan(table, snapshot) == rows
+```
+
+For every snapshot a table's metadata lists, a full scan at that snapshot returns
+exactly the rows in the table's `expected/scan.json`. Bytes are not compared.
 
 ## Size
 
-A table should stay under 100 KB. The three here are 16 KB to 28 KB.
+A table should stay under 100 KB. The four here are 16 KB to 29 KB.
 
 Size tracks commit count, and almost nothing else. A commit costs roughly 12 to
 14 KB, over half of it the manifest and manifest list it produces. Rows are close
 to free: a Parquet file holding five rows is under 1 KB and is nearly all footer.
-A deletion vector is 385 bytes. A v3 table runs slightly heavier per commit than
-v1 or v2, because a v3 manifest entry carries the deletion vector fields whether
-or not a vector exists.
 
 So the limit is about seven commits. A table that needs more should say why in
 its pull request.
@@ -49,23 +52,21 @@ every `file_path`. That prefix is the sentinel root:
 file:///tmp/iceberg-verification/reference-tables/<format-version>/<table-name>
 ```
 
-A consumer resolves it one of two ways. Symlinking `/tmp/iceberg-verification` at
-the checkout leaves every committed byte untouched. Substituting the prefix while
-loading works where symlinks do not, notably on Windows. Both are valid, because
-the assertion in every surface is on decoded values rather than bytes.
+A consumer resolves the prefix by symlinking `/tmp/iceberg-verification` to the
+root of its checkout, which leaves every committed byte untouched:
 
-Substitution has to match on the path,
-`/tmp/iceberg-verification/reference-tables`, and not on a scheme prefix. The two
-spellings are not consistent across fields: `location` carries `file:///tmp/...`
-with an empty authority, while the paths Hadoop wrote
-into the manifest lists and manifests carry `file:/tmp/...`. Both are valid URIs
-and both name the same file. Symlinking avoids the question.
+```
+ln -s "$(pwd)" /tmp/iceberg-verification
+```
+
+This route is verified on Linux. It is not yet verified on Windows.
 
 Starting with v4 the spec permits relative paths and makes `location` optional,
-so a v4 table needs neither.
+so a v4 table needs no symlink.
 
-Data files are real Parquet and the tables are scannable, so surfaces over this
-corpus are not limited to metadata decoding.
+Loading a table opens only its metadata file, so a load succeeds without the
+symlink. The scan in the assertion opens every manifest list, manifest and data
+file, so a passing scan also shows the symlink resolves.
 
 ## What is here
 
@@ -140,3 +141,46 @@ from the index rather than constructing it.
 Earlier metadata files are pruned to reduce clutter. `metadata-log` still lists
 them, which is correct: it is a record of past commits, not a set of live
 references, and nothing resolves those paths on load.
+
+## Expected values
+
+Each table directory holds `expected/scan.json`, with one entry per snapshot:
+
+```json
+{
+  "snapshots": [
+    {
+      "snapshot-id": "7973649908883454602",
+      "rows": [
+        {"1": "1", "2": "alpha", "3": "2026-01-01T00:00:00.000000+00:00"},
+        {"1": "2", "2": "bravo", "3": "2026-01-02T00:00:00.000000+00:00"}
+      ]
+    }
+  ]
+}
+```
+
+- `snapshot-id` is the snapshot scanned.
+- `rows` is every row the scan returns at that snapshot. Each row is a struct of
+  the table schema, written in the spec's
+  [JSON single-value serialization](https://github.com/apache/iceberg/blob/main/format/spec.md#json-single-value-serialization):
+  keyed by field ID, with every nested value in the same form.
+
+`snapshot-id` and every `long` value are written as strings, following the
+64-bit integer rule in `CONTRIBUTING.md`. This is the one departure from the
+single-value serialization, which writes a `long` as a JSON number.
+
+## Procedure
+
+Each entry in `snapshots` is checked on its own. The table is scanned at that
+snapshot through the implementation's scan API, with no filter and every column
+of the schema projected. Reading the data files directly bypasses scan planning,
+so it does not satisfy the assertion.
+
+Each value is decoded as the type the table schema gives its field ID, and
+compared as that decoded value. The returned rows and `rows` are then compared
+as multisets, because the spec fixes no row order for a scan. List elements keep
+their order. Map entries are compared as a set of key and value pairs, because
+a map fixes no entry order.
+
+Every difference is reported, naming the table, the snapshot, and the row.
