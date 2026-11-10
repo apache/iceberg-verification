@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Validate conformance fixtures against the JSON Schemas in dev/schema/.
+"""Validate conformance fixtures against schemas and surface-specific rules.
 
 Each cases.json is validated against the base structural schema and its surface
 schema, when present; case ids must be unique within a surface.
@@ -25,7 +25,12 @@ schema, when present; case ids must be unique within a surface.
 import glob
 import json
 import os
+import re
+import struct
 import sys
+import uuid
+from datetime import date, datetime, time, timezone
+from decimal import Decimal
 
 import jsonschema
 
@@ -128,7 +133,7 @@ def _json_scalar_equal(left, right):
     return type(left) is type(right) and left == right
 
 
-def _partition_transform_errors(path, doc):
+def _partition_transform_errors(path, doc, check_bucket=True):
     errors = []
     cases = doc.get("cases") if isinstance(doc, dict) else None
     if not isinstance(cases, list):
@@ -219,6 +224,135 @@ def _partition_transform_errors(path, doc):
                     f"{sorted(required_result_types)}"
                 )
 
+    bucket_path = path.replace("\\", "/").endswith(
+        "/partition-transforms/bucket/cases.json"
+    )
+    if check_bucket and not errors and bucket_path:
+        errors.extend(_bucket_errors(path, doc))
+
+    return errors
+
+
+EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+TIMESTAMP = re.compile(
+    r"^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d{1,9}))?(Z|[+-]\d\d:\d\d)?$"
+)
+MASK = 0xFFFFFFFF
+
+
+def murmur3_x86_32(data):
+    """MurmurHash3 x86 32-bit with seed 0, returned as an unsigned integer."""
+    h = 0
+    for offset in range(0, len(data) // 4 * 4, 4):
+        k = int.from_bytes(data[offset : offset + 4], "little")
+        k = (k * 0xCC9E2D51) & MASK
+        k = ((k << 15) | (k >> 17)) & MASK
+        k = (k * 0x1B873593) & MASK
+        h ^= k
+        h = ((h << 13) | (h >> 19)) & MASK
+        h = (h * 5 + 0xE6546B64) & MASK
+
+    tail = data[len(data) // 4 * 4 :]
+    if tail:
+        k = int.from_bytes(tail, "little")
+        k = (k * 0xCC9E2D51) & MASK
+        k = ((k << 15) | (k >> 17)) & MASK
+        k = (k * 0x1B873593) & MASK
+        h ^= k
+
+    h ^= len(data)
+    h ^= h >> 16
+    h = (h * 0x85EBCA6B) & MASK
+    h ^= h >> 13
+    h = (h * 0xC2B2AE35) & MASK
+    return (h ^ (h >> 16)) & MASK
+
+
+def epoch_units(value, nanos=False):
+    match = TIMESTAMP.fullmatch(value)
+    if not match:
+        raise ValueError(f"invalid timestamp: {value}")
+    base, fraction, zone = match.groups()
+    instant = datetime.fromisoformat(base + ("+00:00" if zone == "Z" else zone or ""))
+    instant = instant.astimezone(timezone.utc) if zone else instant.replace(tzinfo=timezone.utc)
+    delta = instant - EPOCH
+    seconds = delta.days * 86400 + delta.seconds
+    digits = (fraction or "").ljust(9, "0")
+    nanoseconds = seconds * 1_000_000_000 + int(digits or "0")
+    if nanos and nanoseconds < 0 and nanoseconds % 1000:
+        raise ValueError("negative nanoseconds between microseconds need a spec rounding rule")
+    return nanoseconds // 1000
+
+
+def decimal_bytes(value):
+    decimal = Decimal(value)
+    digits = decimal.as_tuple()
+    unscaled = int("".join(map(str, digits.digits)))
+    if digits.sign:
+        unscaled = -unscaled
+    length = 1
+    while not -(1 << (length * 8 - 1)) <= unscaled < (1 << (length * 8 - 1)):
+        length += 1
+    return unscaled.to_bytes(length, "big", signed=True)
+
+
+def encode_for_hash(source_type, value):
+    if source_type in ("int", "long"):
+        return struct.pack("<q", int(value))
+    if source_type.startswith("decimal("):
+        return decimal_bytes(value)
+    if source_type == "date":
+        days = (date.fromisoformat(value) - date(1970, 1, 1)).days
+        return struct.pack("<q", days)
+    if source_type == "time":
+        clock = time.fromisoformat(value)
+        micros = ((clock.hour * 60 + clock.minute) * 60 + clock.second) * 1_000_000
+        return struct.pack("<q", micros + clock.microsecond)
+    if source_type in ("timestamp", "timestamptz", "timestamp_ns", "timestamptz_ns"):
+        return struct.pack("<q", epoch_units(value, source_type.endswith("_ns")))
+    if source_type == "string":
+        return value.encode("utf-8")
+    if source_type == "uuid":
+        return uuid.UUID(value).bytes
+    if source_type == "binary" or source_type.startswith("fixed["):
+        return bytes.fromhex(value)
+    raise ValueError(f"unsupported bucket source type: {source_type}")
+
+
+def _bucket_errors(path, doc):
+    vectors = (
+        (struct.pack("<q", 34), 2017239379),
+        (struct.pack("<q", 17486), -653330422 & MASK),
+        (b"iceberg", 1210000089),
+    )
+    for data, expected_hash in vectors:
+        if murmur3_x86_32(data) != expected_hash:
+            raise AssertionError("Murmur3 does not reproduce an Appendix B vector")
+
+    errors = []
+    for case_index, case in enumerate(doc["cases"]):
+        width = re.fullmatch(r"bucket\[(\d+)\]", case["input"]["transform"])
+        if not width or int(width[1]) <= 0:
+            errors.append(f"{path}: cases/{case_index}: invalid bucket transform")
+            continue
+        count = int(width[1])
+        source_type = case["input"]["source_type"]
+        values = case["input"]["values"]
+        expected = case["decoded"]["values"]
+        for index, (value, wanted) in enumerate(zip(values, expected)):
+            try:
+                actual = None
+                if value is not None:
+                    hashed = murmur3_x86_32(encode_for_hash(source_type, value))
+                    actual = (hashed & 0x7FFFFFFF) % count
+            except (ValueError, OverflowError, struct.error) as exc:
+                errors.append(f"{path}: cases/{case_index}/input/values/{index}: {exc}")
+                continue
+            if actual != wanted:
+                errors.append(
+                    f"{path}: cases/{case_index}/decoded/values/{index}: "
+                    f"expected {actual}, found {wanted}"
+                )
     return errors
 
 
@@ -246,6 +380,7 @@ def main():
             errors.append(f"{path}: invalid JSON: {e}")
             continue
 
+        file_error_count = len(errors)
         validators = [base_validator]
         if _is_types_surface(path):
             validators.append(types_validator)
@@ -257,7 +392,11 @@ def main():
                 errors.append(f"{path}: {where}: {err.message}")
 
         if _is_partition_transforms_surface(path):
-            errors.extend(_partition_transform_errors(path, doc))
+            errors.extend(
+                _partition_transform_errors(
+                    path, doc, check_bucket=len(errors) == file_error_count
+                )
+            )
 
         cases = doc.get("cases") if isinstance(doc, dict) else None
         if isinstance(cases, list):

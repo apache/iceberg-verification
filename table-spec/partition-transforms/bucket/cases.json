@@ -84,10 +84,16 @@
       "input": {
         "transform": "bucket[100]",
         "source_type": "timestamp_ns",
-        "values": [null, "2017-11-16T22:31:08", "2017-11-16T22:31:08.000001001", "2017-11-16T22:31:08.000001999"]
+        "values": [
+          null,
+          "2017-11-16T22:31:08",
+          "2017-11-16T22:31:08.000001001",
+          "2017-11-16T22:31:08.000001999",
+          "1969-12-31T23:59:59.999999000"
+        ]
       },
-      "decoded": { "result_types": ["int"], "values": [null, 7, 38, 38] },
-      "clause": "Appendix B: nanosecond timestamps must be converted to microsecond precision before hashing",
+      "decoded": { "result_types": ["int"], "values": [null, 7, 38, 38, 12] },
+      "clause": "Appendix B: nanosecond timestamps must be converted to microsecond precision before hashing, including exact pre-epoch microseconds",
       "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
     },
     {
@@ -101,11 +107,12 @@
           "2017-11-16T14:31:08-08:00",
           "2017-11-16T22:31:08Z",
           "2017-11-16T14:31:08.000001001-08:00",
-          "2017-11-16T14:31:08.000001999-08:00"
+          "2017-11-16T14:31:08.000001999-08:00",
+          "1969-12-31T23:59:59.999999000Z"
         ]
       },
-      "decoded": { "result_types": ["int"], "values": [null, 7, 7, 38, 38] },
-      "clause": "Appendix B: zoned nanosecond timestamps hash their instant after conversion to microsecond precision",
+      "decoded": { "result_types": ["int"], "values": [null, 7, 7, 38, 38, 12] },
+      "clause": "Appendix B: zoned nanosecond timestamps hash their instant after conversion to microsecond precision, including exact pre-epoch microseconds",
       "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
     },
     {

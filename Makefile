@@ -87,20 +87,20 @@ selftest: $(VENV_STAMP) ## Check the validator accepts a good fixture and reject
 	assert_reject "decoded simple type with extra key" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int","precision":9},"clause":"c","spec_ref":"s"}]}'; \
 	run_partition_transform_validator() { \
 	  d="$$(mktemp -d)"; \
-	  mkdir -p "$$d/table-spec/partition-transforms/x"; \
-	  printf '%s' "$$1" > "$$d/table-spec/partition-transforms/x/cases.json"; \
+	  mkdir -p "$$d/table-spec/partition-transforms/$${2:-x}"; \
+	  printf '%s' "$$1" > "$$d/table-spec/partition-transforms/$${2:-x}/cases.json"; \
 	  rc=0; out="$$($(VENV_PYTHON) dev/validate-fixtures.py "$$d" 2>&1)" || rc=$$?; \
 	  rm -rf "$$d"; \
 	}; \
 	assert_partition_transform_accept() { \
-	  run_partition_transform_validator "$$2"; \
+	  run_partition_transform_validator "$$2" "$${3:-x}"; \
 	  if [ "$$rc" -ne 0 ]; then \
 	    echo "FAILED: validator rejected a well-formed fixture ($$1)"; echo "$$out"; exit 1; \
 	  fi; \
 	  echo "ok: accepted ($$1)"; \
 	}; \
 	assert_partition_transform_reject() { \
-	  run_partition_transform_validator "$$2"; \
+	  run_partition_transform_validator "$$2" "$${4:-x}"; \
 	  if [ "$$rc" -ne 1 ] || ! grep -q '^FAILED: ' <<< "$$out"; then \
 	    echo "FAILED: validator did not reject a malformed fixture ($$1), exit code $$rc"; echo "$$out"; exit 1; \
 	  fi; \
@@ -110,6 +110,8 @@ selftest: $(VENV_STAMP) ## Check the validator accepts a good fixture and reject
 	  echo "ok: rejected ($$1)"; \
 	}; \
 	assert_partition_transform_accept "well-formed partition transform" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[34,null]},"decoded":{"result_types":["int"],"values":[79,null]},"clause":"c","spec_ref":"s"}]}'; \
+	assert_partition_transform_accept "computed bucket value" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[null,34]},"decoded":{"result_types":["int"],"values":[null,79]},"clause":"c","spec_ref":"s"}]}' bucket; \
+	assert_partition_transform_reject "incorrect bucket value" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[null,34]},"decoded":{"result_types":["int"],"values":[null,78]},"clause":"c","spec_ref":"s"}]}' 'expected 79, found 78' bucket; \
 	assert_partition_transform_reject "unknown partition transform" '{"cases":[{"id":"a","valid":true,"input":{"transform":"mystery","source_type":"int","values":[1,null]},"decoded":{"result_types":["int"],"values":[1,null]},"clause":"c","spec_ref":"s"}]}'; \
 	assert_partition_transform_reject "unsupported transform source pair" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[10]","source_type":"boolean","values":[true,null]},"decoded":{"result_types":["int"],"values":[1,null]},"clause":"c","spec_ref":"s"}]}'; \
 	assert_partition_transform_reject "unequal partition transform value lengths" '{"cases":[{"id":"a","valid":true,"input":{"transform":"identity","source_type":"int","values":[1,null]},"decoded":{"result_types":["int"],"values":[1]},"clause":"c","spec_ref":"s"}]}'; \

@@ -68,11 +68,11 @@ Each `cases.json` holds a `cases` array. A case has this shape:
   "input": {
     "transform": "bucket[100]",
     "source_type": "int",
-    "values": [34, null]
+    "values": [null, 34]
   },
   "decoded": {
     "result_types": ["int"],
-    "values": [79, null]
+    "values": [null, 79]
   },
   "clause": "Bucket Transform Details and Appendix B: int hash reference vector",
   "spec_ref": "format/spec.md#appendix-b-32-bit-hash-requirements"
@@ -147,6 +147,15 @@ the specified sign-bit rule. The values were independently cross-checked
 against Apache Iceberg Java transform tests and PyIceberg transform tests. Those
 implementations are cross-checks, not the source of truth.
 
+Run `make validate` to recompute every value in `bucket/cases.json` from
+Appendix B's type encodings and Murmur3 x86 32-bit hash. The calculation in
+`dev/validate-fixtures.py` uses only Python's standard library. The validator
+reads fixtures without changing them and fails if a value differs. `make check`
+runs the validator too.
+Appendix B labels the date operation `hashInt(days)`, but its published date
+hash vector uses the 8-byte `hashLong(days)` encoding, consistent with its
+int/long hash rule; the checker follows the published vector.
+
 ## Left out on purpose
 
 - Partition-spec JSON, parsing invalid transform strings, and invalid
@@ -155,6 +164,10 @@ implementations are cross-checks, not the source of truth.
   human-readable paths, table metadata, manifests, and physical encodings.
 - Minimum or maximum values for `N` and `W`, and integer-overflow behavior. The
   specification does not settle those choices for this surface.
+- Pre-epoch nanosecond bucket inputs that fall between microseconds. Appendix B
+  requires conversion to microsecond precision before hashing but does not
+  specify whether negative fractional microseconds round down or toward zero.
+  The pre-epoch nanosecond cases use an exact microsecond value instead.
 - `identity` for `geometry` and `geography`, which the Partition Transforms
   table explicitly excludes.
 - `void` for nested values and `variant`. The cases cover the primitive types
