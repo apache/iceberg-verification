@@ -224,10 +224,7 @@ def _partition_transform_errors(path, doc, check_bucket=True):
                     f"{sorted(required_result_types)}"
                 )
 
-    bucket_path = path.replace("\\", "/").endswith(
-        "/partition-transforms/bucket/cases.json"
-    )
-    if check_bucket and not errors and bucket_path:
+    if check_bucket and not errors:
         errors.extend(_bucket_errors(path, doc))
 
     return errors
@@ -297,24 +294,68 @@ def decimal_bytes(value):
 
 
 def encode_for_hash(source_type, value):
-    if source_type in ("int", "long"):
+    if source_type == "int":
+        if type(value) is not int or not -(1 << 31) <= value < (1 << 31):
+            raise ValueError("int must be a 32-bit JSON integer")
+        return struct.pack("<q", int(value))
+    if source_type == "long":
+        if not isinstance(value, str) or not re.fullmatch(r"-?(0|[1-9][0-9]*)", value):
+            raise ValueError("long must be a decimal string")
         return struct.pack("<q", int(value))
     if source_type.startswith("decimal("):
+        precision, scale = map(
+            int, re.fullmatch(r"decimal\((\d+), (\d+)\)", source_type).groups()
+        )
+        decimal_pattern = (
+            r"-?(0|[1-9][0-9]*)"
+            + (r"\.[0-9]{" + str(scale) + r"}" if scale else "")
+        )
+        if not isinstance(value, str) or not re.fullmatch(decimal_pattern, value):
+            raise ValueError("decimal must be a scale-preserving string")
+        decimal = Decimal(value)
+        if len(decimal.as_tuple().digits) > precision:
+            raise ValueError(f"decimal must fit precision {precision} and scale {scale}")
         return decimal_bytes(value)
     if source_type == "date":
+        if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+            raise ValueError("date must use YYYY-MM-DD")
         days = (date.fromisoformat(value) - date(1970, 1, 1)).days
         return struct.pack("<q", days)
     if source_type == "time":
+        if not isinstance(value, str) or not re.fullmatch(
+            r"\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?", value
+        ):
+            raise ValueError("time must use ISO local time")
         clock = time.fromisoformat(value)
         micros = ((clock.hour * 60 + clock.minute) * 60 + clock.second) * 1_000_000
         return struct.pack("<q", micros + clock.microsecond)
     if source_type in ("timestamp", "timestamptz", "timestamp_ns", "timestamptz_ns"):
+        if not isinstance(value, str):
+            raise ValueError("timestamp must be an ISO string")
+        match = TIMESTAMP.fullmatch(value)
+        if not match or bool(match[3]) != source_type.startswith("timestamptz"):
+            raise ValueError("timestamp zone must match source type")
+        if match[2] and len(match[2]) > (9 if source_type.endswith("_ns") else 6):
+            raise ValueError("timestamp exceeds source type precision")
         return struct.pack("<q", epoch_units(value, source_type.endswith("_ns")))
     if source_type == "string":
+        if not isinstance(value, str):
+            raise ValueError("string must be a JSON string")
         return value.encode("utf-8")
     if source_type == "uuid":
-        return uuid.UUID(value).bytes
+        if not isinstance(value, str):
+            raise ValueError("uuid must be canonical lowercase text")
+        parsed = uuid.UUID(value)
+        if str(parsed) != value:
+            raise ValueError("uuid must be canonical lowercase text")
+        return parsed.bytes
     if source_type == "binary" or source_type.startswith("fixed["):
+        if not isinstance(value, str) or not re.fullmatch(r"(?:[0-9A-F]{2})*", value):
+            raise ValueError("binary must be uppercase hexadecimal bytes")
+        if source_type.startswith("fixed[") and len(value) != 2 * int(
+            source_type[6:-1]
+        ):
+            raise ValueError("fixed value must match its declared byte length")
         return bytes.fromhex(value)
     raise ValueError(f"unsupported bucket source type: {source_type}")
 
@@ -331,9 +372,8 @@ def _bucket_errors(path, doc):
 
     errors = []
     for case_index, case in enumerate(doc["cases"]):
-        width = re.fullmatch(r"bucket\[(\d+)\]", case["input"]["transform"])
-        if not width or int(width[1]) <= 0:
-            errors.append(f"{path}: cases/{case_index}: invalid bucket transform")
+        width = re.fullmatch(r"bucket\[([1-9][0-9]*)\]", case["input"]["transform"])
+        if not width:
             continue
         count = int(width[1])
         source_type = case["input"]["source_type"]
@@ -345,7 +385,7 @@ def _bucket_errors(path, doc):
                 if value is not None:
                     hashed = murmur3_x86_32(encode_for_hash(source_type, value))
                     actual = (hashed & 0x7FFFFFFF) % count
-            except (ValueError, OverflowError, struct.error) as exc:
+            except (TypeError, ValueError, OverflowError, UnicodeError, struct.error) as exc:
                 errors.append(f"{path}: cases/{case_index}/input/values/{index}: {exc}")
                 continue
             if actual != wanted:

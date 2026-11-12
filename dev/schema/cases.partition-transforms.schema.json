@@ -34,7 +34,7 @@
       "properties": {
         "transform": {
           "type": "string",
-          "pattern": "^(identity|bucket\\[[0-9]+\\]|truncate\\[[0-9]+\\]|year|month|day|hour|void)$"
+          "pattern": "^(identity|bucket\\[[1-9][0-9]*\\]|truncate\\[[1-9][0-9]*\\]|year|month|day|hour|void)$"
         },
         "source_type": { "$ref": "#/$defs/typeName" },
         "values": {
