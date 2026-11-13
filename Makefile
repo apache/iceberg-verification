@@ -84,7 +84,62 @@ selftest: $(VENV_STAMP) ## Check the validator accepts a good fixture and reject
 	assert_reject "decoded decimal typo (precison)" '{"cases":[{"id":"a","valid":true,"input":"decimal(9,2)","decoded":{"type":"decimal","precison":9,"scale":2},"clause":"c","spec_ref":"s"}]}'; \
 	assert_reject "decoded fixed carrying len not length" '{"cases":[{"id":"a","valid":true,"input":"fixed[16]","decoded":{"type":"fixed","len":16},"clause":"c","spec_ref":"s"}]}'; \
 	assert_reject "decoded unknown type name" '{"cases":[{"id":"a","valid":true,"input":"x","decoded":{"type":"notatype"},"clause":"c","spec_ref":"s"}]}'; \
-	assert_reject "decoded simple type with extra key" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int","precision":9},"clause":"c","spec_ref":"s"}]}'
+	assert_reject "decoded simple type with extra key" '{"cases":[{"id":"a","valid":true,"input":"int","decoded":{"type":"int","precision":9},"clause":"c","spec_ref":"s"}]}'; \
+	run_partition_transform_validator() { \
+	  d="$$(mktemp -d)"; \
+	  mkdir -p "$$d/table-spec/partition-transforms/$${2:-x}"; \
+	  printf '%s' "$$1" > "$$d/table-spec/partition-transforms/$${2:-x}/cases.json"; \
+	  rc=0; out="$$($(VENV_PYTHON) dev/validate-fixtures.py "$$d" 2>&1)" || rc=$$?; \
+	  rm -rf "$$d"; \
+	}; \
+	assert_partition_transform_accept() { \
+	  run_partition_transform_validator "$$2" "$${3:-x}"; \
+	  if [ "$$rc" -ne 0 ]; then \
+	    echo "FAILED: validator rejected a well-formed fixture ($$1)"; echo "$$out"; exit 1; \
+	  fi; \
+	  echo "ok: accepted ($$1)"; \
+	}; \
+	assert_partition_transform_reject() { \
+	  run_partition_transform_validator "$$2" "$${4:-x}"; \
+	  if [ "$$rc" -ne 1 ] || ! grep -q '^FAILED: ' <<< "$$out"; then \
+	    echo "FAILED: validator did not reject a malformed fixture ($$1), exit code $$rc"; echo "$$out"; exit 1; \
+	  fi; \
+	  if [ -n "$$3" ] && ! grep -Fq "$$3" <<< "$$out"; then \
+	    echo "FAILED: validator report did not contain '$$3' ($$1)"; echo "$$out"; exit 1; \
+	  fi; \
+	  echo "ok: rejected ($$1)"; \
+	}; \
+	assert_partition_transform_accept "well-formed partition transform" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[34,null]},"decoded":{"result_types":["int"],"values":[79,null]},"clause":"c","spec_ref":"s"}]}'; \
+	assert_partition_transform_accept "computed bucket value" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[null,34]},"decoded":{"result_types":["int"],"values":[null,79]},"clause":"c","spec_ref":"s"}]}' bucket; \
+	assert_partition_transform_reject "incorrect bucket value" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[null,34]},"decoded":{"result_types":["int"],"values":[null,78]},"clause":"c","spec_ref":"s"}]}' 'expected 79, found 78' bucket; \
+	assert_partition_transform_reject "unknown partition transform" '{"cases":[{"id":"a","valid":true,"input":{"transform":"mystery","source_type":"int","values":[1,null]},"decoded":{"result_types":["int"],"values":[1,null]},"clause":"c","spec_ref":"s"}]}'; \
+	assert_partition_transform_reject "unsupported transform source pair" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[10]","source_type":"boolean","values":[true,null]},"decoded":{"result_types":["int"],"values":[1,null]},"clause":"c","spec_ref":"s"}]}'; \
+	assert_partition_transform_reject "unequal partition transform value lengths" '{"cases":[{"id":"a","valid":true,"input":{"transform":"identity","source_type":"int","values":[1,null]},"decoded":{"result_types":["int"],"values":[1]},"clause":"c","spec_ref":"s"}]}'; \
+	assert_partition_transform_reject "partition transform without null input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"identity","source_type":"int","values":[1]},"decoded":{"result_types":["int"],"values":[1]},"clause":"c","spec_ref":"s"}]}'; \
+	assert_partition_transform_reject "partition transform null propagation mismatch" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[10]","source_type":"int","values":[null]},"decoded":{"result_types":["int"],"values":[0]},"clause":"c","spec_ref":"s"}]}'; \
+	assert_partition_transform_reject "wrong bucket result type" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[10]","source_type":"long","values":["1",null]},"decoded":{"result_types":["long"],"values":[1,null]},"clause":"c","spec_ref":"s"}]}'; \
+	assert_partition_transform_reject "wrong day result type" '{"cases":[{"id":"a","valid":true,"input":{"transform":"day","source_type":"date","values":["1970-01-01",null]},"decoded":{"result_types":["int"],"values":["1970-01-01",null]},"clause":"c","spec_ref":"s"}]}'; \
+	assert_partition_transform_reject "identity value mismatch" '{"cases":[{"id":"a","valid":true,"input":{"transform":"identity","source_type":"string","values":["a",null]},"decoded":{"result_types":["string"],"values":["b",null]},"clause":"c","spec_ref":"s"}]}'; \
+	assert_partition_transform_reject "void missing an allowed result type" '{"cases":[{"id":"a","valid":true,"input":{"transform":"void","source_type":"string","values":["a",null]},"decoded":{"result_types":["int"],"values":[null,null]},"clause":"c","spec_ref":"s"}]}'; \
+	assert_partition_transform_reject "object in partition transform result types" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[34,null]},"decoded":{"result_types":["int",{}],"values":[79,null]},"clause":"c","spec_ref":"s"}]}' 'cases/0/decoded/result_types/1'; \
+	assert_partition_transform_reject "nested list in partition transform result types" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[34,null]},"decoded":{"result_types":[[]],"values":[79,null]},"clause":"c","spec_ref":"s"}]}' 'cases/0/decoded/result_types/0'; \
+	assert_partition_transform_reject "zero truncate width" '{"cases":[{"id":"a","valid":true,"input":{"transform":"truncate[0]","source_type":"int","values":[null,34]},"decoded":{"result_types":["int"],"values":[null,34]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/transform' truncate; \
+	assert_partition_transform_reject "zero bucket count outside bucket directory" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[0]","source_type":"int","values":[null,34]},"decoded":{"result_types":["int"],"values":[null,0]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/transform'; \
+	assert_partition_transform_reject "bucket value checked outside bucket directory" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[null,34]},"decoded":{"result_types":["int"],"values":[null,78]},"clause":"c","spec_ref":"s"}]}' 'expected 79, found 78'; \
+	assert_partition_transform_reject "fractional int bucket input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[null,34.5]},"decoded":{"result_types":["int"],"values":[null,79]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "boolean int bucket input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"int","values":[null,true]},"decoded":{"result_types":["int"],"values":[null,79]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "number long bucket input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"long","values":[null,34]},"decoded":{"result_types":["int"],"values":[null,79]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "wrong decimal scale" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"decimal(9, 2)","values":[null,"14.2"]},"decoded":{"result_types":["int"],"values":[null,59]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "non-string decimal bucket input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"decimal(9, 2)","values":[null,14.2]},"decoded":{"result_types":["int"],"values":[null,59]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "non-string bucket input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"string","values":[null,5]},"decoded":{"result_types":["int"],"values":[null,0]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "non-string date bucket input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"date","values":[null,5]},"decoded":{"result_types":["int"],"values":[null,0]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "non-string time bucket input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"time","values":[null,5]},"decoded":{"result_types":["int"],"values":[null,0]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "non-string timestamp bucket input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"timestamp","values":[null,5]},"decoded":{"result_types":["int"],"values":[null,0]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "non-string uuid bucket input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"uuid","values":[null,5]},"decoded":{"result_types":["int"],"values":[null,0]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "non-string binary bucket input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"binary","values":[null,5]},"decoded":{"result_types":["int"],"values":[null,0]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "lowercase binary bucket input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"binary","values":[null,"00ff"]},"decoded":{"result_types":["int"],"values":[null,0]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "non-string fixed bucket input" '{"cases":[{"id":"a","valid":true,"input":{"transform":"bucket[100]","source_type":"fixed[4]","values":[null,5]},"decoded":{"result_types":["int"],"values":[null,0]},"clause":"c","spec_ref":"s"}]}' 'cases/0/input/values/1' bucket; \
+	assert_partition_transform_reject "partition transform misspelled field" '{"cases":[{"id":"a","valid":true,"input":{"transform":"identity","source-type":"int","values":[1,null]},"decoded":{"result_types":["int"],"values":[1,null]},"clause":"c","spec_ref":"s"}]}'
 
 license: ## Check ASF license headers with Apache RAT
 	dev/check-license

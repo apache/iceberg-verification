@@ -1,0 +1,168 @@
+{
+  "cases": [
+    {
+      "id": "void-unknown",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "unknown", "values": [null] },
+      "decoded": { "result_types": ["unknown", "int"], "values": [null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-boolean",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "boolean", "values": [null, true] },
+      "decoded": { "result_types": ["boolean", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-int",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "int", "values": [null, 34] },
+      "decoded": { "result_types": ["int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; source type and int are the same allowed result type",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-long",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "long", "values": [null, "34"] },
+      "decoded": { "result_types": ["long", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-float",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "float", "values": [null, 1.5] },
+      "decoded": { "result_types": ["float", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-double",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "double", "values": [null, 1.25] },
+      "decoded": { "result_types": ["double", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-decimal-9-2",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "decimal(9, 2)", "values": [null, "14.20"] },
+      "decoded": { "result_types": ["decimal(9, 2)", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-date",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "date", "values": [null, "2017-11-16"] },
+      "decoded": { "result_types": ["date", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-time",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "time", "values": [null, "22:31:08"] },
+      "decoded": { "result_types": ["time", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-timestamp",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "timestamp", "values": [null, "2017-11-16T22:31:08.000001"] },
+      "decoded": { "result_types": ["timestamp", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-timestamptz",
+      "valid": true,
+      "input": {
+        "transform": "void",
+        "source_type": "timestamptz",
+        "values": [null, "2017-11-16T14:31:08.000001-08:00"]
+      },
+      "decoded": { "result_types": ["timestamptz", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-timestamp-ns",
+      "valid": true,
+      "input": {
+        "transform": "void",
+        "source_type": "timestamp_ns",
+        "values": [null, "2017-11-16T22:31:08.000001001"]
+      },
+      "decoded": { "result_types": ["timestamp_ns", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-timestamptz-ns",
+      "valid": true,
+      "input": {
+        "transform": "void",
+        "source_type": "timestamptz_ns",
+        "values": [null, "2017-11-16T14:31:08.000001001-08:00"]
+      },
+      "decoded": { "result_types": ["timestamptz_ns", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-string",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "string", "values": [null, "iceberg"] },
+      "decoded": { "result_types": ["string", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-uuid",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "uuid", "values": [null, "f79c3e09-677c-4bbd-a479-3f349cb785e7"] },
+      "decoded": { "result_types": ["uuid", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-fixed-4",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "fixed[4]", "values": [null, "00010203"] },
+      "decoded": { "result_types": ["fixed[4]", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-binary",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "binary", "values": [null, "00010203"] },
+      "decoded": { "result_types": ["binary", "int"], "values": [null, null] },
+      "clause": "Partition Transforms: void always produces null; result type is source type or int",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-geometry",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "geometry(OGC:CRS84)", "values": [null] },
+      "decoded": { "result_types": ["geometry(OGC:CRS84)", "int"], "values": [null] },
+      "clause": "Partition Transforms: void accepts any source type and always produces null",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "void-geography",
+      "valid": true,
+      "input": { "transform": "void", "source_type": "geography(OGC:CRS84, spherical)", "values": [null] },
+      "decoded": { "result_types": ["geography(OGC:CRS84, spherical)", "int"], "values": [null] },
+      "clause": "Partition Transforms: void accepts any source type and always produces null",
+      "spec_ref": "format/spec.md#partition-transforms"
+    }
+  ]
+}

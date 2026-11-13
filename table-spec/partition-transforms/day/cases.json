@@ -1,0 +1,129 @@
+{
+  "cases": [
+    {
+      "id": "day-date",
+      "valid": true,
+      "input": {
+        "transform": "day",
+        "source_type": "date",
+        "values": [null, "1969-12-31", "1970-01-01", "2000-02-29", "2000-03-01", "2017-12-01"]
+      },
+      "decoded": {
+        "result_types": ["date"],
+        "values": [null, "1969-12-31", "1970-01-01", "2000-02-29", "2000-03-01", "2017-12-01"]
+      },
+      "clause": "Partition Transforms: extract a date day, as days from 1970-01-01; expected values are logical dates",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "day-timestamp",
+      "valid": true,
+      "input": {
+        "transform": "day",
+        "source_type": "timestamp",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999",
+          "1970-01-01T00:00:00",
+          "2000-02-29T23:59:59.999999",
+          "2000-03-01T00:00:00",
+          "2017-12-01T10:12:55.038194"
+        ]
+      },
+      "decoded": {
+        "result_types": ["date"],
+        "values": [null, "1969-12-31", "1970-01-01", "2000-02-29", "2000-03-01", "2017-12-01"]
+      },
+      "clause": "Partition Transforms: extract a timestamp day; expected values are logical dates",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "day-timestamptz",
+      "valid": true,
+      "input": {
+        "transform": "day",
+        "source_type": "timestamptz",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999Z",
+          "1970-01-01T00:00:00Z",
+          "2000-02-29T23:59:59.999999Z",
+          "2000-03-01T00:00:00Z",
+          "2017-12-01T10:12:55.038194Z",
+          "2017-12-01T12:12:55.038194+02:00",
+          "2017-11-30T23:30:00-10:00"
+        ]
+      },
+      "decoded": {
+        "result_types": ["date"],
+        "values": [
+          null,
+          "1969-12-31",
+          "1970-01-01",
+          "2000-02-29",
+          "2000-03-01",
+          "2017-12-01",
+          "2017-12-01",
+          "2017-12-01"
+        ]
+      },
+      "clause": "Partition Transforms: timestamp-with-zone day uses the instant, including offset-equivalent values that cross a local date",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "day-timestamp-ns",
+      "valid": true,
+      "input": {
+        "transform": "day",
+        "source_type": "timestamp_ns",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999999",
+          "1970-01-01T00:00:00.000000000",
+          "2000-02-29T23:59:59.999999999",
+          "2000-03-01T00:00:00.000000000",
+          "2017-12-01T10:12:55.038194789"
+        ]
+      },
+      "decoded": {
+        "result_types": ["date"],
+        "values": [null, "1969-12-31", "1970-01-01", "2000-02-29", "2000-03-01", "2017-12-01"]
+      },
+      "clause": "Partition Transforms: extract a nanosecond timestamp day; expected values are logical dates",
+      "spec_ref": "format/spec.md#partition-transforms"
+    },
+    {
+      "id": "day-timestamptz-ns",
+      "valid": true,
+      "input": {
+        "transform": "day",
+        "source_type": "timestamptz_ns",
+        "values": [
+          null,
+          "1969-12-31T23:59:59.999999999Z",
+          "1970-01-01T00:00:00.000000000Z",
+          "2000-02-29T23:59:59.999999999Z",
+          "2000-03-01T00:00:00.000000000Z",
+          "2017-12-01T10:12:55.038194789Z",
+          "2017-12-01T12:12:55.038194789+02:00",
+          "2017-11-30T23:30:00.000000001-10:00"
+        ]
+      },
+      "decoded": {
+        "result_types": ["date"],
+        "values": [
+          null,
+          "1969-12-31",
+          "1970-01-01",
+          "2000-02-29",
+          "2000-03-01",
+          "2017-12-01",
+          "2017-12-01",
+          "2017-12-01"
+        ]
+      },
+      "clause": "Partition Transforms: zoned nanosecond timestamp day uses the instant across offsets",
+      "spec_ref": "format/spec.md#partition-transforms"
+    }
+  ]
+}
