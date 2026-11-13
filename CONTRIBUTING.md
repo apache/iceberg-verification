@@ -71,8 +71,9 @@ input is small enough to write inline, one record is usually the clearer form.
 
 A surface may be divided into subdirectories along an internal dimension such
 as type or format version. The subdirectories share the surface's assertion and
-its `README.md`. A dimension that changes the assertion is not an internal
-dimension, it is a second surface.
+its `README.md`. A subdirectory's own `README.md`, where there is one, records
+how its inputs were produced and states no assertion. A dimension that changes
+the assertion is not an internal dimension, it is a second surface.
 
 A subdirectory is the unit of subscription. It exists so that a consumer can run
 one directory to answer one conformance question, for example whether its

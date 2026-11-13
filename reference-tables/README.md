@@ -33,11 +33,12 @@ exactly the rows in the table's `expected/scan.json`. Bytes are not compared.
 
 ## Size
 
-A table should stay under 100 KB. The four here are 16 KB to 29 KB.
+A table should stay under 100 KB. The four here are 16 KB to 30 KB.
 
 Size tracks commit count, and almost nothing else. A commit costs roughly 12 to
-14 KB, over half of it the manifest and manifest list it produces. Rows are close
-to free: a Parquet file holding five rows is under 1 KB and is nearly all footer.
+14 KB, most of it the manifest and manifest list it produces. Rows are close to
+free: a Parquet file holding a few rows is 1 to 2 KB, about two thirds of it
+footer.
 
 So the limit is about seven commits. A table that needs more should say why in
 its pull request.
@@ -45,12 +46,16 @@ its pull request.
 ## Paths
 
 Prior to v4 the spec requires every path field to be fully qualified, so each
-table carries an absolute prefix in `location`, in every `manifest-list`, and in
-every `file_path`. That prefix is the sentinel root:
+table carries an absolute prefix in `location`, every `manifest-list`,
+`manifest_path` and `file_path`, and every `metadata-log` entry. That prefix is
+the sentinel root:
 
 ```
-file:///tmp/iceberg-verification/reference-tables/<format-version>/<table-name>
+/tmp/iceberg-verification/reference-tables/<format-version>/<table-name>
 ```
+
+`location` writes it as `file:///tmp/...` and every other field as
+`file:/tmp/...`. Both name the same file.
 
 A consumer resolves the prefix by symlinking `/tmp/iceberg-verification` to the
 root of its checkout, which leaves every committed byte untouched:
@@ -67,6 +72,20 @@ so a v4 table needs no symlink.
 Loading a table opens only its metadata file, so a load succeeds without the
 symlink. The scan in the assertion opens every manifest list, manifest and data
 file, so a passing scan also shows the symlink resolves.
+
+## Writer behavior outside the spec
+
+The tables carry what Iceberg Java 1.11.0 writes, including three places where it
+departs from the spec. The expected values do not encode them, and none of them is
+spec behavior to assert.
+
+- v2 manifests omit the `schema-id` key-value entry, which the spec requires for
+  v2 ([apache/iceberg#10927](https://github.com/apache/iceberg/issues/10927)).
+- The v1 table writes `refs`, which the spec omits for v1.
+- The v1 table writes partition field `field-id` in `partition-specs`, the
+  deprecated `partition-spec`, and each manifest's `partition-spec` entry. The spec
+  omits it for v1. The values, 1000 and 1001, are the ones the spec says v1 readers
+  assign.
 
 ## What is here
 
@@ -91,6 +110,34 @@ Consumers read it; the `description` field is documentation and is ignored.
 
 A table is written once and not regenerated, so `written-by` is per table: the
 corpus holds whatever version was current when each table was added.
+
+`GenerateTables.java` writes these tables. It is compiled against
+`org.apache.iceberg:iceberg-core`, `iceberg-data` and `iceberg-parquet` 1.11.0
+and `org.apache.hadoop:hadoop-common` 3.4.1, and parquet-mr 1.17.1 comes with
+`iceberg-parquet`. Its main class is
+`org.apache.iceberg.verification.GenerateTables`. It is not built or run by CI.
+
+Each table directory holds a `README.md` whose Input section gives the table's
+format version, schema, partition spec, and the rows of each commit. The
+generator reads that input, creates the table with `HadoopTables`, and appends
+one data file per commit. It writes each table directly at the sentinel root, so
+the absolute paths are correct as written and nothing is rewritten. After
+writing, it prunes earlier `metadata.json` files and deletes Hadoop's `.crc`
+sidecars and `version-hint.text`. Output is not byte-reproducible, because
+Iceberg assigns random UUIDs, snapshot IDs and timestamps.
+
+A table is added by writing its `README.md` and running the generator with the
+`reference-tables` directory and the table's name as arguments, for example
+`reference-tables v2/partitioned-parquet-data`. It writes only that table and
+prints the table's `index.json` entry. The generator deletes and rewrites the
+sentinel root, so it refuses to run while `/tmp/iceberg-verification` is a
+symlink, and the consumer symlink is removed first. The generated `data/` and
+`metadata/` directories then replace the table's own, which are removed first so
+no earlier UUID-named files remain.
+
+Data files are GZIP-compressed although each table sets
+`write.parquet.compression-codec` to `zstd`, because the generator builds the
+Parquet writer without the table's properties.
 
 ## Naming
 
@@ -132,9 +179,10 @@ rather than a spec artifact, and only Iceberg Java and PyIceberg read it. An
 explicit metadata path is the one mechanism all five share.
 
 Only the current `metadata.json` is committed. Its name carries a version
-counter, not the table's format version: a writer names each metadata commit
-`v<V>.metadata.json` starting at `v1` on create, so `v1/partitioned-parquet-data`
-is a format v1 table whose metadata file is `v3.metadata.json` after two appends.
+counter, not the table's format version. The tables were written as file system
+tables, whose metadata files the spec names `v<V>.metadata.json`, starting at `v1`
+on create. So `v1/partitioned-parquet-data` is a format v1 table whose metadata
+file is `v3.metadata.json` after two appends.
 The directory name is the format version. The file name is not. Read the path
 from the index rather than constructing it.
 
@@ -170,12 +218,20 @@ Each table directory holds `expected/scan.json`, with one entry per snapshot:
 64-bit integer rule in `CONTRIBUTING.md`. This is the one departure from the
 single-value serialization, which writes a `long` as a JSON number.
 
+The rows in each file were produced by a full scan at each snapshot with
+PyIceberg 0.12.0, encoded as above and sorted by `id`. They were checked against
+a read of each snapshot's live data files with no Iceberg library: its manifest
+list, each manifest's entries not marked `DELETED`, and the rows of each data
+file those entries name.
+
 ## Procedure
 
 Each entry in `snapshots` is checked on its own. The table is scanned at that
-snapshot through the implementation's scan API, with no filter and every column
-of the schema projected. Reading the data files directly bypasses scan planning,
-so it does not satisfy the assertion.
+snapshot, as in the spec's
+[Point in Time Reads](https://iceberg.apache.org/spec/#point-in-time-reads-time-travel),
+through the implementation's scan API, with no filter and every column projected.
+Reading the data files directly bypasses scan planning, so it does not satisfy
+the assertion.
 
 Each value is decoded as the type the table schema gives its field ID, and
 compared as that decoded value. The returned rows and `rows` are then compared
