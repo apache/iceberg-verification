@@ -34,7 +34,7 @@ its own type object to `decoded`, so the comparison does not depend on one
 language's representation.
 
 - `valid: true` - the parser succeeds and the decoded type equals `decoded`. A
-  type an implementation does not model is UNSUPPORTED, not a failure. If the case
+  type an implementation does not model is skip, not a failure. If the case
   also carries `canonical`, re-serializing the parsed type must equal it byte for
   byte (the write direction).
 - `valid: false` - the parser must reject `input`. A rejection passes; a

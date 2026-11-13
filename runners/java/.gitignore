@@ -1,0 +1,5 @@
+# Local-only: an iceberg clone for `--include-build` (CI resolves the Maven SNAPSHOT).
+/iceberg-src/
+
+/.gradle/
+/build/
