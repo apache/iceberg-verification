@@ -34,12 +34,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.IcebergBuild;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
+import org.apache.iceberg.RowDelta;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.StructLike;
@@ -49,8 +52,11 @@ import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
+import org.apache.iceberg.deletes.BaseDVFileWriter;
 import org.apache.iceberg.hadoop.HadoopTables;
+import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
+import org.apache.iceberg.io.DeleteWriteResult;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Type;
@@ -125,6 +131,14 @@ public class GenerateTables {
     Table table = tables.create(schema, spec, props, SENTINEL + "/" + name);
 
     for (JsonNode commit : input.get("commits")) {
+      if (commit.has("data-files")) {
+        appendFiles(table, commit.get("data-files"));
+        continue;
+      }
+      if (commit.has("deletion-vector")) {
+        addDeletionVector(table, commit.get("deletion-vector"));
+        continue;
+      }
       List<Record> records = new ArrayList<>();
       for (JsonNode row : commit.get("rows")) {
         records.add(record(table.schema().asStruct(), row));
@@ -134,6 +148,56 @@ public class GenerateTables {
     }
 
     finish(table, name, input.get("description").asText());
+  }
+
+  /** Several data files in one append, each written as in a single-file commit. */
+  static void appendFiles(Table table, JsonNode files) throws IOException {
+    AppendFiles append = table.newAppend();
+    for (JsonNode file : files) {
+      List<Record> records = new ArrayList<>();
+      for (JsonNode row : file.get("rows")) {
+        records.add(record(table.schema().asStruct(), row));
+      }
+      append.appendFile(write(table, file.get("data-file").asText(), records));
+    }
+    append.commit();
+  }
+
+  /** One deletion vector for the given row positions of a live data file, in a row delta. */
+  static void addDeletionVector(Table table, JsonNode dv) throws IOException {
+    String tag = dv.get("data-file").asText();
+    DataFile target = null;
+    try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
+      for (FileScanTask task : tasks) {
+        if (task.file().location().endsWith("/data/" + tag + ".parquet")) {
+          if (!task.deletes().isEmpty()) {
+            throw new IllegalArgumentException("Data file " + tag + " already has deletes");
+          }
+          target = task.file();
+        }
+      }
+    }
+    if (target == null) {
+      throw new IllegalArgumentException("No live data file " + tag);
+    }
+
+    String location = table.location() + "/data/" + tag + "-deletes.puffin";
+    BaseDVFileWriter writer =
+        new BaseDVFileWriter(() -> table.io().newOutputFile(location), path -> null);
+    try (BaseDVFileWriter open = writer) {
+      for (JsonNode node : dv.get("positions")) {
+        long pos = Long.parseLong(node.asText());
+        if (pos < 0 || pos >= target.recordCount()) {
+          throw new IllegalArgumentException("Position " + pos + " is not a row of " + tag);
+        }
+        open.delete(target.location(), pos, table.specs().get(target.specId()), target.partition());
+      }
+    }
+
+    DeleteWriteResult result = writer.result();
+    RowDelta delta = table.newRowDelta().validateDataFilesExist(result.referencedDataFiles());
+    result.deleteFiles().forEach(delta::addDeletes);
+    delta.commit();
   }
 
   /** A data file belongs to one partition, so every record shares the first record's value. */

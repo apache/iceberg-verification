@@ -20,7 +20,8 @@
 # Reference tables
 
 This directory holds complete Iceberg tables: metadata, manifest lists,
-manifests, and Parquet data files. Tables are grouped by format version.
+manifests, Parquet data files, and Puffin deletion vectors. Tables are grouped
+by format version.
 
 ## Assertion
 
@@ -33,7 +34,7 @@ exactly the rows in the table's `expected/scan.json`. Bytes are not compared.
 
 ## Size
 
-A table should stay under 100 KB. The four here are 16 KB to 30 KB.
+A table should stay under 100 KB. The five here are 16 KB to 31 KB.
 
 Size tracks commit count, and almost nothing else. A commit costs roughly 12 to
 14 KB, most of it the manifest and manifest list it produces. Rows are close to
@@ -47,8 +48,9 @@ its pull request.
 
 Prior to v4 the spec requires every path field to be fully qualified, so each
 table carries an absolute prefix in `location`, every `manifest-list`,
-`manifest_path` and `file_path`, and every `metadata-log` entry. That prefix is
-the sentinel root:
+`manifest_path`, `file_path` and `referenced_data_file`, every `metadata-log`
+entry, and a deletion vector's `referenced-data-file` Puffin blob property. That
+prefix is the sentinel root:
 
 ```
 /tmp/iceberg-verification/reference-tables/<format-version>/<table-name>
@@ -79,8 +81,9 @@ The tables carry what Iceberg Java 1.11.0 writes, including three places where i
 departs from the spec. The expected values do not encode them, and none of them is
 spec behavior to assert.
 
-- v2 manifests omit the `schema-id` key-value entry, which the spec requires for
-  v2 ([apache/iceberg#10927](https://github.com/apache/iceberg/issues/10927)).
+- v2 and v3 manifests omit the `schema-id` key-value entry, which the spec
+  requires for v2 and v3
+  ([apache/iceberg#10927](https://github.com/apache/iceberg/issues/10927)).
 - The v1 table writes `refs`, which the spec omits for v1.
 - The v1 table writes partition field `field-id` in `partition-specs`, the
   deprecated `partition-spec`, and each manifest's `partition-spec` entry. The spec
@@ -118,13 +121,16 @@ and `org.apache.hadoop:hadoop-common` 3.4.1, and parquet-mr 1.17.1 comes with
 `org.apache.iceberg.verification.GenerateTables`. It is not built or run by CI.
 
 Each table directory holds a `README.md` whose Input section gives the table's
-format version, schema, partition spec, and the rows of each commit. The
-generator reads that input, creates the table with `HadoopTables`, and appends
-one data file per commit. It writes each table directly at the sentinel root, so
-the absolute paths are correct as written and nothing is rewritten. After
-writing, it prunes earlier `metadata.json` files and deletes Hadoop's `.crc`
-sidecars and `version-hint.text`. Output is not byte-reproducible, because
-Iceberg assigns random UUIDs, snapshot IDs and timestamps.
+format version, schema, partition spec, and each commit: the rows of one data
+file, the data files of one append, or the row positions of one data file that
+a deletion vector deletes. The generator reads that input, creates the table
+with `HadoopTables`, and commits each in turn, writing a deletion vector with
+Iceberg's `BaseDVFileWriter` in a row delta. It writes each table directly at
+the sentinel root, so the absolute paths are correct as written and nothing is
+rewritten. After writing, it prunes earlier `metadata.json` files and deletes
+Hadoop's `.crc` sidecars and `version-hint.text`. Output is not
+byte-reproducible, because Iceberg assigns random UUIDs, snapshot IDs and
+timestamps.
 
 A table is added by writing its `README.md` and running the generator with the
 `reference-tables` directory and the table's name as arguments, for example
@@ -222,7 +228,9 @@ The rows in each file were produced by a full scan at each snapshot with
 PyIceberg 0.12.0, encoded as above and sorted by `id`. They were checked against
 a read of each snapshot's live data files with no Iceberg library: its manifest
 list, each manifest's entries not marked `DELETED`, and the rows of each data
-file those entries name.
+file those entries name, less the positions any deletion vector that applies to
+it deletes. The rows of `v3/deletion-vector-parquet-data` were instead derived
+from its Input, and a PyIceberg 0.12.0 scan returns the same rows.
 
 ## Procedure
 

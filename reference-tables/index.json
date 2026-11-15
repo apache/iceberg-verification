@@ -31,6 +31,14 @@
       "data-file-format": "parquet",
       "metadata": "v2/partitioned-parquet-data/metadata/v3.metadata.json",
       "description": "Identity partition on category and a day transform on event_ts. Two snapshots, one data file per partition, three rows."
+    },
+    {
+      "name": "v3/deletion-vector-parquet-data",
+      "format-version": 3,
+      "written-by": "Iceberg Java 1.11.0",
+      "data-file-format": "parquet",
+      "metadata": "v3/deletion-vector-parquet-data/metadata/v3.metadata.json",
+      "description": "Flat schema of long, string and int. One append of two data files (five and two rows), then a deletion vector that deletes positions 0 and 3 of the first file only."
     }
   ]
 }
