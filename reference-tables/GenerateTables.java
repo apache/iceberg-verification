@@ -39,6 +39,7 @@ import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.IcebergBuild;
+import org.apache.iceberg.MetadataColumns;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
@@ -63,6 +64,7 @@ import org.apache.iceberg.io.DeleteWriteResult;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.JsonUtil;
 
@@ -146,6 +148,10 @@ public class GenerateTables {
         updateSchema(table, commit.get("schema-updates"));
         continue;
       }
+      if (commit.has("overwrite")) {
+        overwrite(table, commit.get("overwrite"));
+        continue;
+      }
       List<Record> records = new ArrayList<>();
       for (JsonNode row : commit.get("rows")) {
         records.add(record(table.schema().asStruct(), row));
@@ -173,20 +179,7 @@ public class GenerateTables {
   /** One deletion vector for the given row positions of a live data file, in a row delta. */
   static void addDeletionVector(Table table, JsonNode dv) throws IOException {
     String tag = dv.get("data-file").asText();
-    DataFile target = null;
-    try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
-      for (FileScanTask task : tasks) {
-        if (task.file().location().endsWith("/data/" + tag + ".parquet")) {
-          if (!task.deletes().isEmpty()) {
-            throw new IllegalArgumentException("Data file " + tag + " already has deletes");
-          }
-          target = task.file();
-        }
-      }
-    }
-    if (target == null) {
-      throw new IllegalArgumentException("No live data file " + tag);
-    }
+    DataFile target = liveDataFile(table, tag);
 
     String location = table.location() + "/data/" + tag + "-deletes.puffin";
     BaseDVFileWriter writer =
@@ -244,8 +237,51 @@ public class GenerateTables {
     return value == null ? null : Expressions.lit(value);
   }
 
-  /** A data file belongs to one partition, so every record shares the first record's value. */
+  /** The live data file with the given tag, which must have no deletes. */
+  static DataFile liveDataFile(Table table, String tag) throws IOException {
+    DataFile target = null;
+    try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
+      for (FileScanTask task : tasks) {
+        if (task.file().location().endsWith("/data/" + tag + ".parquet")) {
+          if (!task.deletes().isEmpty()) {
+            throw new IllegalArgumentException("Data file " + tag + " already has deletes");
+          }
+          target = task.file();
+        }
+      }
+    }
+    if (target == null) {
+      throw new IllegalArgumentException("No live data file " + tag);
+    }
+    return target;
+  }
+
+  /**
+   * Replaces a live data file with a new one in an overwrite. The new file's rows also carry the
+   * row lineage columns, {@code _row_id} and {@code _last_updated_sequence_number}, keyed by their
+   * reserved field IDs, so a row moved from the old file keeps its row ID.
+   */
+  static void overwrite(Table table, JsonNode overwrite) throws IOException {
+    DataFile replaced = liveDataFile(table, overwrite.get("replaces").asText());
+    Schema schema =
+        TypeUtil.join(
+            table.schema(),
+            new Schema(MetadataColumns.ROW_ID, MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER));
+    List<Record> records = new ArrayList<>();
+    for (JsonNode row : overwrite.get("rows")) {
+      records.add(record(schema.asStruct(), row));
+    }
+    DataFile file = write(table, schema, overwrite.get("data-file").asText(), records);
+    table.newOverwrite().deleteFile(replaced).addFile(file).commit();
+  }
+
   static DataFile write(Table table, String tag, List<Record> records) throws IOException {
+    return write(table, table.schema(), tag, records);
+  }
+
+  /** A data file belongs to one partition, so every record shares the first record's value. */
+  static DataFile write(Table table, Schema schema, String tag, List<Record> records)
+      throws IOException {
     StructLike partition = null;
     if (table.spec().isPartitioned()) {
       InternalRecordWrapper wrapper = new InternalRecordWrapper(table.schema().asStruct());
@@ -265,7 +301,7 @@ public class GenerateTables {
     OutputFile out = table.io().newOutputFile(table.location() + "/data/" + tag + ".parquet");
     DataWriter<Record> writer =
         Parquet.writeData(out)
-            .schema(table.schema())
+            .schema(schema)
             .createWriterFunc(GenericParquetWriter::create)
             .withSpec(table.spec())
             .withPartition(partition)

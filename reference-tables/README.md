@@ -34,7 +34,7 @@ exactly the rows in the table's `expected/scan.json`. Bytes are not compared.
 
 ## Size
 
-A table should stay under 100 KB. The six here are 16 KB to 31 KB.
+A table should stay under 100 KB. The seven here are 16 KB to 52 KB.
 
 Size tracks commit count, and almost nothing else. A commit costs roughly 12 to
 14 KB, most of it the manifest and manifest list it produces. Rows are close to
@@ -156,14 +156,16 @@ table apart: it states the reader behavior the table exercises, and what it
 deliberately leaves out and why. The Input section gives the table's format
 version, schema, partition spec, and each commit: the rows of one data file, the
 data files of one append, the row positions of one data file that a deletion
-vector deletes, or the updates of a schema change. The generator reads that
-input, creates the table with `HadoopTables`, and commits each in turn, writing
-a deletion vector with Iceberg's `BaseDVFileWriter` in a row delta. It writes
-each table directly at the sentinel root, so the absolute paths are correct as
-written and nothing is rewritten. After writing, it prunes earlier
-`metadata.json` files and deletes Hadoop's `.crc` sidecars and
-`version-hint.text`. Output is not byte-reproducible, because Iceberg assigns
-random UUIDs, snapshot IDs and timestamps.
+vector deletes, the updates of a schema change, or a data file that replaces
+another in an overwrite. The generator reads that input, creates the table with
+`HadoopTables`, and commits each in turn, writing a deletion vector with Iceberg's
+`BaseDVFileWriter` in a row delta. A replacing data file's rows may also carry
+the row lineage columns `_row_id` and `_last_updated_sequence_number`, keyed by
+their reserved field IDs. It writes each table directly at the sentinel root,
+so the absolute paths are correct as written and nothing is rewritten. After
+writing, it prunes earlier `metadata.json` files and deletes Hadoop's `.crc`
+sidecars and `version-hint.text`. Output is not byte-reproducible, because Iceberg
+assigns random UUIDs, snapshot IDs and timestamps.
 
 A table is added by writing its `README.md` and running the generator with the
 `reference-tables` directory and the table's name as arguments, for example
@@ -253,6 +255,12 @@ Each table directory holds `expected/scan.json`, with one entry per snapshot:
   [JSON single-value serialization](https://github.com/apache/iceberg/blob/main/format/spec.md#json-single-value-serialization):
   keyed by field ID, with every nested value in the same form.
 
+A v3 table that tests row lineage also writes the
+[row lineage](https://iceberg.apache.org/spec/#row-lineage) metadata columns in
+each row: `_row_id` under `"2147483540"` and `_last_updated_sequence_number`
+under `"2147483539"`, both `long`. Their values are the ones a reader assigns,
+by inheritance where the data file stores null or omits the column.
+
 `snapshot-id` and every `long` value are written as strings, following the
 64-bit integer rule in `CONTRIBUTING.md`. This is the one departure from the
 single-value serialization, which writes a `long` as a JSON number.
@@ -264,14 +272,19 @@ list, each manifest's entries not marked `DELETED`, and the rows of each data
 file those entries name, read by field ID with any field a file lacks filled from
 its `initial-default`, less the positions any deletion vector that applies to
 it deletes. The rows of `v3/deletion-vector-parquet-data` were instead derived
-from its Input, and a PyIceberg 0.12.0 scan returns the same rows.
+from its Input, and a PyIceberg 0.12.0 scan returns the same rows. The rows of
+`v3/row-lineage-parquet-data` were derived from its Input and the spec's
+inheritance rules, and an Iceberg Java 1.11.0 scan that projects the row lineage
+columns returns the same rows.
 
 ## Procedure
 
 Each entry in `snapshots` is checked on its own. The table is scanned at that
 snapshot, as in the spec's
 [Point in Time Reads](https://iceberg.apache.org/spec/#point-in-time-reads-time-travel),
-through the implementation's scan API, with no filter and every column projected.
+through the implementation's scan API, with no filter and every column projected,
+and with `_row_id` and `_last_updated_sequence_number` projected too where `rows`
+carries their field IDs.
 Reading the data files directly bypasses scan planning, so it does not satisfy
 the assertion.
 
