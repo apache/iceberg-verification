@@ -21,10 +21,15 @@ package org.apache.iceberg.verification;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -32,6 +37,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.AppendFiles;
@@ -237,6 +243,7 @@ public class GenerateTables {
   }
 
   // input values, in the spec's single-value JSON keyed by field id, with long values as strings
+  // and binary and fixed values as uppercase hex
 
   static Record record(Types.StructType struct, JsonNode node) {
     Record record = GenericRecord.create(struct);
@@ -251,19 +258,43 @@ public class GenerateTables {
       return null;
     }
     switch (type.typeId()) {
+      case BOOLEAN:
+        return node.booleanValue();
       case LONG:
         return Long.parseLong(node.asText());
       case INTEGER:
         return node.intValue();
+      case FLOAT:
+        return node.floatValue();
       case DOUBLE:
         return node.doubleValue();
+      case DECIMAL:
+        BigDecimal decimal = new BigDecimal(node.textValue());
+        if (decimal.scale() != ((Types.DecimalType) type).scale()) {
+          throw new IllegalArgumentException("Value " + node + " is not of type " + type);
+        }
+        return decimal;
+      case DATE:
+        return LocalDate.parse(node.textValue());
+      case TIME:
+        return LocalTime.parse(node.textValue());
+      case TIMESTAMP:
+        if (((Types.TimestampType) type).shouldAdjustToUTC()) {
+          return OffsetDateTime.parse(node.textValue());
+        }
+        return LocalDateTime.parse(node.textValue());
       case STRING:
         return node.textValue();
-      case TIMESTAMP:
-        if (!((Types.TimestampType) type).shouldAdjustToUTC()) {
-          break;
+      case UUID:
+        return UUID.fromString(node.textValue());
+      case FIXED:
+        byte[] fixed = hex(node.textValue());
+        if (fixed.length != ((Types.FixedType) type).length()) {
+          throw new IllegalArgumentException("Value " + node + " is not of type " + type);
         }
-        return OffsetDateTime.parse(node.textValue());
+        return fixed;
+      case BINARY:
+        return ByteBuffer.wrap(hex(node.textValue()));
       case STRUCT:
         return record(type.asStructType(), node);
       case LIST:
@@ -286,6 +317,18 @@ public class GenerateTables {
         break;
     }
     throw new UnsupportedOperationException("No input conversion for type " + type);
+  }
+
+  /** Uppercase hex, the form CONTRIBUTING.md gives for binary values. */
+  static byte[] hex(String text) {
+    if (text.length() % 2 != 0 || !text.matches("[0-9A-F]*")) {
+      throw new IllegalArgumentException("Not uppercase hex: \"" + text + "\"");
+    }
+    byte[] bytes = new byte[text.length() / 2];
+    for (int i = 0; i < bytes.length; i += 1) {
+      bytes[i] = (byte) Integer.parseInt(text.substring(2 * i, 2 * i + 2), 16);
+    }
+    return bytes;
   }
 
   // post-processing

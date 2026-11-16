@@ -39,6 +39,14 @@
       "data-file-format": "parquet",
       "metadata": "v3/deletion-vector-parquet-data/metadata/v3.metadata.json",
       "description": "Flat schema of long, string and int. One append of two data files (five and two rows), then a deletion vector that deletes positions 0 and 3 of the first file only."
+    },
+    {
+      "name": "v2/primitive-types-parquet-data",
+      "format-version": 2,
+      "written-by": "Iceberg Java 1.11.0",
+      "data-file-format": "parquet",
+      "metadata": "v2/primitive-types-parquet-data/metadata/v2.metadata.json",
+      "description": "Every v1 and v2 primitive type, read back from Parquet. One append of one data file, three rows: typical values with int and long maxima, boundary values, and every optional column null."
     }
   ]
 }

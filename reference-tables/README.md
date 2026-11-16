@@ -34,7 +34,7 @@ exactly the rows in the table's `expected/scan.json`. Bytes are not compared.
 
 ## Size
 
-A table should stay under 100 KB. The five here are 16 KB to 31 KB.
+A table should stay under 100 KB. The six here are 16 KB to 31 KB.
 
 Size tracks commit count, and almost nothing else. A commit costs roughly 12 to
 14 KB, most of it the manifest and manifest list it produces. Rows are close to
@@ -230,7 +230,10 @@ a read of each snapshot's live data files with no Iceberg library: its manifest
 list, each manifest's entries not marked `DELETED`, and the rows of each data
 file those entries name, less the positions any deletion vector that applies to
 it deletes. The rows of `v3/deletion-vector-parquet-data` were instead derived
-from its Input, and a PyIceberg 0.12.0 scan returns the same rows.
+from its Input, and a PyIceberg 0.12.0 scan returns the same rows. The rows of
+`v2/primitive-types-parquet-data` were also derived from its Input, then checked
+against the same read with no Iceberg library and against scans with PyIceberg,
+Iceberg Java, iceberg-go and iceberg-rust.
 
 ## Procedure
 
