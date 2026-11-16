@@ -29,7 +29,7 @@ import re
 import struct
 import sys
 import uuid
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
 import jsonschema
@@ -133,7 +133,7 @@ def _json_scalar_equal(left, right):
     return type(left) is type(right) and left == right
 
 
-def _partition_transform_errors(path, doc, check_bucket=True):
+def _partition_transform_errors(path, doc, check_values=True):
     errors = []
     cases = doc.get("cases") if isinstance(doc, dict) else None
     if not isinstance(cases, list):
@@ -224,8 +224,8 @@ def _partition_transform_errors(path, doc, check_bucket=True):
                     f"{sorted(required_result_types)}"
                 )
 
-    if check_bucket and not errors:
-        errors.extend(_bucket_errors(path, doc))
+    if check_values and not errors:
+        errors.extend(_computed_value_errors(path, doc))
 
     return errors
 
@@ -265,7 +265,8 @@ def murmur3_x86_32(data):
     return (h ^ (h >> 16)) & MASK
 
 
-def epoch_units(value, nanos=False):
+def epoch_nanos(value):
+    """Exact nanoseconds from the Unix epoch; a value without a zone is read as UTC."""
     match = TIMESTAMP.fullmatch(value)
     if not match:
         raise ValueError(f"invalid timestamp: {value}")
@@ -275,7 +276,11 @@ def epoch_units(value, nanos=False):
     delta = instant - EPOCH
     seconds = delta.days * 86400 + delta.seconds
     digits = (fraction or "").ljust(9, "0")
-    nanoseconds = seconds * 1_000_000_000 + int(digits or "0")
+    return seconds * 1_000_000_000 + int(digits or "0")
+
+
+def epoch_units(value, nanos=False):
+    nanoseconds = epoch_nanos(value)
     if nanos and nanoseconds < 0 and nanoseconds % 1000:
         raise ValueError("negative nanoseconds between microseconds need a spec rounding rule")
     return nanoseconds // 1000
@@ -293,6 +298,31 @@ def decimal_bytes(value):
     return unscaled.to_bytes(length, "big", signed=True)
 
 
+def parse_decimal(source_type, value):
+    """Return (precision, scale, unscaled) for a scale-preserving decimal string."""
+    precision, scale = map(
+        int, re.fullmatch(r"decimal\((\d+), (\d+)\)", source_type).groups()
+    )
+    decimal_pattern = (
+        r"-?(0|[1-9][0-9]*)"
+        + (r"\.[0-9]{" + str(scale) + r"}" if scale else "")
+    )
+    if not isinstance(value, str) or not re.fullmatch(decimal_pattern, value):
+        raise ValueError("decimal must be a scale-preserving string")
+    decimal = Decimal(value)
+    if len(decimal.as_tuple().digits) > precision:
+        raise ValueError(f"decimal must fit precision {precision} and scale {scale}")
+    return precision, scale, int(value.replace(".", ""))
+
+
+def format_decimal(unscaled, scale):
+    sign = "-" if unscaled < 0 else ""
+    digits = str(abs(unscaled)).rjust(scale + 1, "0")
+    if not scale:
+        return sign + digits
+    return f"{sign}{digits[:-scale]}.{digits[-scale:]}"
+
+
 def encode_for_hash(source_type, value):
     if source_type == "int":
         if type(value) is not int or not -(1 << 31) <= value < (1 << 31):
@@ -303,18 +333,7 @@ def encode_for_hash(source_type, value):
             raise ValueError("long must be a decimal string")
         return struct.pack("<q", int(value))
     if source_type.startswith("decimal("):
-        precision, scale = map(
-            int, re.fullmatch(r"decimal\((\d+), (\d+)\)", source_type).groups()
-        )
-        decimal_pattern = (
-            r"-?(0|[1-9][0-9]*)"
-            + (r"\.[0-9]{" + str(scale) + r"}" if scale else "")
-        )
-        if not isinstance(value, str) or not re.fullmatch(decimal_pattern, value):
-            raise ValueError("decimal must be a scale-preserving string")
-        decimal = Decimal(value)
-        if len(decimal.as_tuple().digits) > precision:
-            raise ValueError(f"decimal must fit precision {precision} and scale {scale}")
+        parse_decimal(source_type, value)
         return decimal_bytes(value)
     if source_type == "date":
         if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
@@ -360,7 +379,7 @@ def encode_for_hash(source_type, value):
     raise ValueError(f"unsupported bucket source type: {source_type}")
 
 
-def _bucket_errors(path, doc):
+def check_appendix_b_vectors():
     vectors = (
         (struct.pack("<q", 34), 2017239379),
         (struct.pack("<q", 17486), -653330422 & MASK),
@@ -370,28 +389,115 @@ def _bucket_errors(path, doc):
         if murmur3_x86_32(data) != expected_hash:
             raise AssertionError("Murmur3 does not reproduce an Appendix B vector")
 
+
+def bucket_value(count, source_type, value):
+    return (murmur3_x86_32(encode_for_hash(source_type, value)) & 0x7FFFFFFF) % count
+
+
+def truncate_value(width, source_type, value):
+    """Truncate Transform Details; remainders are positive, as Python's % is for W > 0."""
+    if source_type in ("int", "long"):
+        if source_type == "int":
+            if type(value) is not int or not -(1 << 31) <= value < (1 << 31):
+                raise ValueError("int must be a 32-bit JSON integer")
+            number, bits = value, 32
+        else:
+            if not isinstance(value, str) or not re.fullmatch(r"-?(0|[1-9][0-9]*)", value):
+                raise ValueError("long must be a decimal string")
+            number, bits = int(value), 64
+            if not -(1 << 63) <= number < (1 << 63):
+                raise ValueError("long must fit 64 bits")
+        truncated = number - number % width
+        if truncated < -(1 << (bits - 1)):
+            raise ValueError("the specification does not settle integer overflow")
+        return truncated if source_type == "int" else str(truncated)
+    if source_type.startswith("decimal("):
+        precision, scale, unscaled = parse_decimal(source_type, value)
+        truncated = unscaled - unscaled % width
+        if len(str(abs(truncated))) > precision:
+            raise ValueError("the specification does not settle decimal overflow")
+        return format_decimal(truncated, scale)
+    if source_type == "string":
+        if not isinstance(value, str):
+            raise ValueError("string must be a JSON string")
+        if any(0xD800 <= ord(char) <= 0xDFFF for char in value):
+            raise ValueError("string must hold Unicode scalar values")
+        return value[:width]
+    if source_type == "binary":
+        if not isinstance(value, str) or not re.fullmatch(r"(?:[0-9A-F]{2})*", value):
+            raise ValueError("binary must be uppercase hexadecimal bytes")
+        return value[: 2 * width]
+    raise ValueError(f"unsupported truncate source type: {source_type}")
+
+
+def temporal_value(transform, source_type, value):
+    """year, month, day, and hour as ordinals from the Unix epoch, rounded down."""
+    if not isinstance(value, str):
+        raise ValueError(f"{source_type} must be an ISO string")
+    if source_type == "date":
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+            raise ValueError("date must use YYYY-MM-DD")
+        day = date.fromisoformat(value)
+        hours = None
+    else:
+        match = TIMESTAMP.fullmatch(value)
+        if not match or bool(match[3]) != source_type.startswith("timestamptz"):
+            raise ValueError("timestamp zone must match source type")
+        if match[2] and len(match[2]) > (9 if source_type.endswith("_ns") else 6):
+            raise ValueError("timestamp exceeds source type precision")
+        nanoseconds = epoch_nanos(value)
+        hours = nanoseconds // 3_600_000_000_000
+        day = date(1970, 1, 1) + timedelta(days=nanoseconds // 86_400_000_000_000)
+    if transform == "year":
+        return day.year - 1970
+    if transform == "month":
+        return (day.year - 1970) * 12 + day.month - 1
+    if transform == "day":
+        return day.isoformat()
+    if transform == "hour" and hours is not None:
+        return hours
+    raise ValueError(f"unsupported {transform} source type: {source_type}")
+
+
+def expected_value(transform, source_type, value):
+    """Recompute a transform result from the spec, or None for an unchecked transform."""
+    if value is None:
+        return None
+    bucket = re.fullmatch(r"bucket\[([1-9][0-9]*)\]", transform)
+    if bucket:
+        return bucket_value(int(bucket[1]), source_type, value)
+    truncate = re.fullmatch(r"truncate\[([1-9][0-9]*)\]", transform)
+    if truncate:
+        return truncate_value(int(truncate[1]), source_type, value)
+    if transform in ("year", "month", "day", "hour"):
+        return temporal_value(transform, source_type, value)
+    return None
+
+
+RECOMPUTED = re.compile(r"^(bucket\[|truncate\[|year$|month$|day$|hour$)")
+
+
+def _computed_value_errors(path, doc):
+    check_appendix_b_vectors()
+
     errors = []
     for case_index, case in enumerate(doc["cases"]):
-        width = re.fullmatch(r"bucket\[([1-9][0-9]*)\]", case["input"]["transform"])
-        if not width:
+        transform = case["input"]["transform"]
+        if not RECOMPUTED.match(transform):
             continue
-        count = int(width[1])
         source_type = case["input"]["source_type"]
         values = case["input"]["values"]
         expected = case["decoded"]["values"]
         for index, (value, wanted) in enumerate(zip(values, expected)):
             try:
-                actual = None
-                if value is not None:
-                    hashed = murmur3_x86_32(encode_for_hash(source_type, value))
-                    actual = (hashed & 0x7FFFFFFF) % count
+                actual = expected_value(transform, source_type, value)
             except (TypeError, ValueError, OverflowError, UnicodeError, struct.error) as exc:
                 errors.append(f"{path}: cases/{case_index}/input/values/{index}: {exc}")
                 continue
-            if actual != wanted:
+            if not _json_scalar_equal(actual, wanted):
                 errors.append(
                     f"{path}: cases/{case_index}/decoded/values/{index}: "
-                    f"expected {actual}, found {wanted}"
+                    f"expected {json.dumps(actual)}, found {json.dumps(wanted)}"
                 )
     return errors
 
@@ -434,7 +540,7 @@ def main():
         if _is_partition_transforms_surface(path):
             errors.extend(
                 _partition_transform_errors(
-                    path, doc, check_bucket=len(errors) == file_error_count
+                    path, doc, check_values=len(errors) == file_error_count
                 )
             )
 
