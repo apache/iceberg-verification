@@ -174,6 +174,18 @@ symlink, and the consumer symlink is removed first. The generated `data/` and
 `metadata/` directories then replace the table's own, which are removed first so
 no earlier UUID-named files remain.
 
+The Input may also give `properties`, table properties set when the table is
+created. A value that is not a JSON string, such as a name mapping, is set as its
+compact JSON. A commit may give a `file-schema`, in the spec's schema JSON, for a
+data file whose own schema differs from the table's: other column names, another
+column order, fields the table has and the file lacks. Its rows are keyed by the
+file schema's field IDs, and the file carries those IDs except the ones listed in
+`without-field-ids`, which it writes with no field ID. Lists and maps take the
+three-level form the spec's Parquet mapping gives. Such a file is written with
+parquet-mr's example writer rather than Iceberg's, uncompressed, and its manifest
+entry carries the record count and no column metrics, because those are keyed by
+field ID. This is supported for unpartitioned tables only.
+
 Data files are GZIP-compressed although each table sets
 `write.parquet.compression-codec` to `zstd`, because the generator builds the
 Parquet writer without the table's properties.
