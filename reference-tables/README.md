@@ -217,8 +217,7 @@ Each table directory holds `expected/scan.json`, with one entry per snapshot:
 
 - `snapshot-id` is the snapshot scanned.
 - `rows` is every row the scan returns at that snapshot. Each row is a struct of
-  the schema the snapshot's `schema-id` names (the current schema if it has
-  none), written in the spec's
+  the table schema, written in the spec's
   [JSON single-value serialization](https://github.com/apache/iceberg/blob/main/format/spec.md#json-single-value-serialization):
   keyed by field ID, with every nested value in the same form.
 
@@ -240,12 +239,11 @@ from its Input, and a PyIceberg 0.12.0 scan returns the same rows.
 Each entry in `snapshots` is checked on its own. The table is scanned at that
 snapshot, as in the spec's
 [Point in Time Reads](https://iceberg.apache.org/spec/#point-in-time-reads-time-travel),
-through the implementation's scan API, with no filter and every column of the
-snapshot's schema projected.
+through the implementation's scan API, with no filter and every column projected.
 Reading the data files directly bypasses scan planning, so it does not satisfy
 the assertion.
 
-Each value is decoded as the type that schema gives its field ID, and
+Each value is decoded as the type the table schema gives its field ID, and
 compared as that decoded value. The returned rows and `rows` are then compared
 as multisets, because the spec fixes no row order for a scan. List elements keep
 their order. Map entries are compared as a set of key and value pairs, because

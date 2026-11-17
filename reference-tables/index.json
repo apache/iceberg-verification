@@ -46,7 +46,7 @@
       "written-by": "Iceberg Java 1.11.0",
       "data-file-format": "parquet",
       "metadata": "v3/initial-default-parquet-data/metadata/v5.metadata.json",
-      "description": "A required int added with an initial-default (42) whose write-default is then changed (10), and an optional string added without a default, after the first append. Two snapshots, four rows; rows written before the change read the initial-default and null."
+      "description": "A required int added with an initial-default (42) whose write-default is then changed (10), an optional string added with an initial-default (\"none\"), and an optional string added without a default, after the first append. Two snapshots, four rows; rows written before the change read the initial-defaults and null."
     }
   ]
 }
