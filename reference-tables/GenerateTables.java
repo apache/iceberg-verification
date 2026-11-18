@@ -54,11 +54,14 @@ import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
+import org.apache.iceberg.UpdateSchema;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.deletes.BaseDVFileWriter;
+import org.apache.iceberg.expressions.Expressions;
+import org.apache.iceberg.expressions.Literal;
 import org.apache.iceberg.hadoop.HadoopTables;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
@@ -145,6 +148,10 @@ public class GenerateTables {
         addDeletionVector(table, commit.get("deletion-vector"));
         continue;
       }
+      if (commit.has("schema-updates")) {
+        updateSchema(table, commit.get("schema-updates"));
+        continue;
+      }
       List<Record> records = new ArrayList<>();
       for (JsonNode row : commit.get("rows")) {
         records.add(record(table.schema().asStruct(), row));
@@ -204,6 +211,43 @@ public class GenerateTables {
     RowDelta delta = table.newRowDelta().validateDataFilesExist(result.referencedDataFiles());
     result.deleteFiles().forEach(delta::addDeletes);
     delta.commit();
+  }
+
+  /** One schema commit of add-column and update-default actions, with defaults as input values. */
+  static void updateSchema(Table table, JsonNode updates) {
+    UpdateSchema update = table.updateSchema();
+    for (JsonNode u : updates) {
+      String action = u.get("action").asText();
+      String name = u.get("name").asText();
+      switch (action) {
+        case "add-column":
+          Type type = Types.fromPrimitiveString(u.get("type").asText());
+          Literal<?> initial = literal(type, u.get("initial-default"));
+          if (u.get("required").asBoolean()) {
+            update.addRequiredColumn(name, type, initial);
+          } else {
+            update.addColumn(name, type, initial);
+          }
+          break;
+        case "update-default":
+          Type current = update.apply().findType(name);
+          if (current == null) {
+            throw new IllegalArgumentException("Unknown column " + name);
+          }
+          update.updateColumnDefault(name, literal(current, u.get("write-default")));
+          break;
+        default:
+          throw new IllegalArgumentException("Unknown schema update action " + action);
+      }
+    }
+    update.commit();
+    // A schema commit leaves the table's cached metadata stale, and finish() reads it.
+    table.refresh();
+  }
+
+  static Literal<?> literal(Type type, JsonNode node) {
+    Object value = value(type, node);
+    return value == null ? null : Expressions.lit(value);
   }
 
   /** A data file belongs to one partition, so every record shares the first record's value. */
