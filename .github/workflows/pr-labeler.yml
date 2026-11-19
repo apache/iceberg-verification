@@ -29,6 +29,10 @@ on:
 permissions:
   pull-requests: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   label:
     name: Label from title prefix
@@ -39,8 +43,8 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         REPO: ${{ github.repository }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
-        TITLE: ${{ github.event.pull_request.title }}
       run: |
+        TITLE=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.title')
         declare -A label_for=(
           [Fixture]=fixtures [Tooling]=tooling [CI]=ci
           [Docs]=docs [Policy]=policy [Infra]=infra
