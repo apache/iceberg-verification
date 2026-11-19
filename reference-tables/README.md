@@ -112,8 +112,37 @@ Consumers read it; the `description` field is documentation and is ignored.
 }
 ```
 
-A table is written once and not regenerated, so `written-by` is per table: the
-corpus holds whatever version was current when each table was added.
+`written-by` is per table: the corpus holds whatever version was current when
+each table was written.
+
+A table may be regenerated to cover more of its Scope, or to correct it.
+
+An addition must keep these invariants:
+
+- The table's Scope must remain the same: an addition may only cover more of
+  what it states.
+- `written-by` must remain the same: the same release must write the table.
+- The Input's existing `commits` must remain the same, in the same order.
+- The Input may gain columns with new field IDs or rows, and must not lose any.
+- Restricted to the field IDs the table had before, every row of the previous
+  `expected/scan.json` must appear in the snapshot that the same commit
+  produces.
+
+A correction must keep these invariants:
+
+- The table's Scope must remain the same.
+- Every change must be to something wrong: the table does not match its Input,
+  or the Input does not match the spec.
+- `written-by` must remain the same, unless the fault is in that release. The
+  new release must then be the table's `written-by` in `index.json`, and its
+  departures from the spec documented.
+- The pull request must name each expected value that changed and the spec rule
+  it now follows.
+
+Any other change must be a new table. Snapshot IDs, UUIDs and file names are
+random, so a regeneration rewrites every file: the Input and
+`expected/scan.json` are the reviewable diff, and the pull request must say
+that the table was regenerated and why.
 
 `GenerateTables.java` writes these tables. It is compiled against
 `org.apache.iceberg:iceberg-core`, `iceberg-data` and `iceberg-parquet` 1.11.0
@@ -121,14 +150,17 @@ and `org.apache.hadoop:hadoop-common` 3.4.1, and parquet-mr 1.17.1 comes with
 `iceberg-parquet`. Its main class is
 `org.apache.iceberg.verification.GenerateTables`. It is not built or run by CI.
 
-Each table directory holds a `README.md` whose Input section gives the table's
-format version, schema, partition spec, and each commit: the rows of one data
-file, the data files of one append, the row positions of one data file that a
-deletion vector deletes, or the updates of a schema change. The generator reads
-that input, creates the table with `HadoopTables`, and commits each in turn,
-writing a deletion vector with Iceberg's `BaseDVFileWriter` in a row delta. It
-writes each table directly at the sentinel root, so the absolute paths are
-correct as written and nothing is rewritten. After writing, it prunes earlier
+Each table directory holds a `README.md` with a Scope section and an Input
+section. Every table makes the assertion above, so the Scope is what sets a
+table apart: it states the reader behavior the table exercises, and what it
+deliberately leaves out and why. The Input section gives the table's format
+version, schema, partition spec, and each commit: the rows of one data file, the
+data files of one append, the row positions of one data file that a deletion
+vector deletes, or the updates of a schema change. The generator reads that
+input, creates the table with `HadoopTables`, and commits each in turn, writing
+a deletion vector with Iceberg's `BaseDVFileWriter` in a row delta. It writes
+each table directly at the sentinel root, so the absolute paths are correct as
+written and nothing is rewritten. After writing, it prunes earlier
 `metadata.json` files and deletes Hadoop's `.crc` sidecars and
 `version-hint.text`. Output is not byte-reproducible, because Iceberg assigns
 random UUIDs, snapshot IDs and timestamps.

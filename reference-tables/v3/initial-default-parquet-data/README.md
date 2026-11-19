@@ -27,6 +27,21 @@ A commit with `schema-updates` instead applies those updates as one schema chang
 its `write-default`, and `update-default` changes a column's `write-default`.
 Rows of later commits are written in the evolved schema.
 
+## Scope
+
+Default values: three columns added after the first append, a required `int`
+with an `initial-default` of 42, an optional `string` with an `initial-default`
+of "none", and an optional `string` without one, after which the `int`'s
+`write-default` changes to 10.
+
+The three columns are the three ways a field missing from a data file resolves:
+a required column that only its `initial-default` makes readable, an optional
+column with an `initial-default`, and an optional column that falls back to
+null. Changing the `write-default` afterwards checks that rows written before
+the change still read the `initial-default`, which never changes. The second
+data file supplies every column, so values written after the change read back as
+written.
+
 `expected/scan.json` has no entry for the first snapshot. The spec does not say
 which schema a scan at an earlier snapshot projects, so that assertion is left
 out until it is settled.
