@@ -1,0 +1,49 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Checks that the pull request title starts with a prefix from the
+# "Pull request titles" section of CONTRIBUTING.md.
+name: "Pull Request Title"
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  check-title:
+    name: Check pull request title
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Check prefix
+      env:
+        # The title is untrusted input, so it is passed through the environment
+        # and never interpolated into the script.
+        TITLE: ${{ github.event.pull_request.title }}
+      run: |
+        prefixes='Fixture|Tooling|CI|Docs|Policy|Infra'
+        pattern="^(${prefixes})(, (${prefixes}))*: [^[:space:]]"
+        if [[ "$TITLE" =~ $pattern ]]; then
+          echo "Title has a valid prefix."
+          exit 0
+        fi
+        echo "::error title=Missing title prefix::The title must start with one of" \
+          "Fixture, Tooling, CI, Docs, Policy or Infra, then ': ' and a summary," \
+          "e.g. 'Fixture: Add reference table for ...'. See the" \
+          "'Pull request titles' section of CONTRIBUTING.md."
+        exit 1

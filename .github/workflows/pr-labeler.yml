@@ -1,0 +1,76 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Applies the label for each title prefix listed in the "Pull request titles"
+# section of CONTRIBUTING.md, and removes prefix labels the title no longer has.
+# pull_request_target is needed so that pull requests from forks can be
+# labeled. It is safe here because the job never checks out the pull request
+# and reads the title only through the environment.
+name: "Pull Request Labeler"
+
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types: [opened, edited, reopened]
+
+permissions:
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  label:
+    name: Label from title prefix
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Sync labels with the title prefix
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        TITLE=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.title')
+        declare -A label_for=(
+          [Fixture]=fixtures [Tooling]=tooling [CI]=ci
+          [Docs]=docs [Policy]=policy [Infra]=infra
+        )
+        prefixes='Fixture|Tooling|CI|Docs|Policy|Infra'
+        pattern="^((${prefixes})(, (${prefixes}))*): "
+        if [[ ! "$TITLE" =~ $pattern ]]; then
+          echo "Title has no valid prefix, leaving labels unchanged."
+          exit 0
+        fi
+
+        declare -A wanted=()
+        IFS=',' read -ra kinds <<< "${BASH_REMATCH[1]}"
+        for kind in "${kinds[@]}"; do
+          wanted[${label_for[${kind# }]}]=1
+        done
+
+        current=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/labels" --jq '.[].name')
+        for label in "${label_for[@]}"; do
+          if grep -qxF "$label" <<< "$current"; then
+            if [[ -z "${wanted[$label]:-}" ]]; then
+              echo "Removing label: ${label}"
+              gh api -X DELETE "repos/${REPO}/issues/${PR_NUMBER}/labels/${label}" > /dev/null
+            fi
+          elif [[ -n "${wanted[$label]:-}" ]]; then
+            echo "Adding label: ${label}"
+            gh api -X POST "repos/${REPO}/issues/${PR_NUMBER}/labels" -f "labels[]=${label}" > /dev/null
+          fi
+        done

@@ -269,6 +269,33 @@ to you, but it has to cover:
   It has to settle the comparison rule and how a failure is labeled. Pseudocode
   is one way to do that and prose is another.
 
+### Pull request titles
+
+A pull request title starts with a prefix naming the kind of change:
+
+```
+Fixture: Add reference table for primitive types read from Parquet
+```
+
+Pull requests are squash-merged with the title as the commit message, so the
+prefix is how `main`'s history is read by kind.
+
+| Prefix    | Label      | Use for                                                                                    |
+| --------- | ---------- | ------------------------------------------------------------------------------------------ |
+| `Fixture` | `fixtures` | A new surface, new cases or reference tables, or a correction to a committed fixture.      |
+| `Tooling` | `tooling`  | Validators and schemas under `dev/`, the table generator, runners, formatting, `Makefile`. |
+| `CI`      | `ci`       | Workflows under `.github/workflows`.                                                       |
+| `Docs`    | `docs`     | README and CONTRIBUTING changes that change no rule a contributor must follow.             |
+| `Policy`  | `policy`   | Rules a contributor or a fixture must follow, wherever they are written.                   |
+| `Infra`   | `infra`    | `.asf.yaml`, repository settings, and issue and pull request templates.                    |
+
+A change that changes what a contributor must do is `Policy`, otherwise it is
+`Docs`. A pull request that is substantially two kinds lists both, separated by
+a comma, as in `Fixture, Tooling:`. Tooling changes that only support a new
+fixture stay under `Fixture`. Open a draft pull request instead of marking the
+title `[WIP]`. CI checks the title on every pull request and applies the
+label for each prefix.
+
 ## Before opening a pull request
 
 Run `make install` once to install the tooling, then `make format` to format the
