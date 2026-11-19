@@ -112,8 +112,37 @@ Consumers read it; the `description` field is documentation and is ignored.
 }
 ```
 
-A table is written once and not regenerated, so `written-by` is per table: the
-corpus holds whatever version was current when each table was added.
+`written-by` is per table: the corpus holds whatever version was current when
+each table was written.
+
+A table may be regenerated to add coverage of the assertion it already makes, or
+to correct it.
+
+An addition must keep these invariants:
+
+- The Assertion in the table's README must remain the same.
+- `written-by` must remain the same: the same release must write the table.
+- The Input's existing `commits` must remain the same, in the same order.
+- The Input may gain columns with new field IDs or rows, and must not lose any.
+- Restricted to the field IDs the table had before, every row of the previous
+  `expected/scan.json` must appear in the snapshot that the same commit
+  produces.
+
+A correction must keep these invariants:
+
+- The Assertion in the table's README must remain the same.
+- Every change must be to something wrong: the table does not match its Input,
+  or the Input does not match the spec.
+- `written-by` must remain the same, unless the fault is in that release. The
+  new release must then be the table's `written-by` in `index.json`, and its
+  departures from the spec documented.
+- The pull request must name each expected value that changed and the spec rule
+  it now follows.
+
+Any other change must be a new table. Snapshot IDs, UUIDs and file names are
+random, so a regeneration rewrites every file: the Input and
+`expected/scan.json` are the reviewable diff, and the pull request must say
+that the table was regenerated and why.
 
 `GenerateTables.java` writes these tables. It is compiled against
 `org.apache.iceberg:iceberg-core`, `iceberg-data` and `iceberg-parquet` 1.11.0
