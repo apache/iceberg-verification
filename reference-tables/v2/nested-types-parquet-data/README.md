@@ -23,6 +23,20 @@ Input to `reference-tables/GenerateTables.java`. The schema and partition spec a
 the spec's JSON forms. Each commit appends one data file holding its rows, written
 in the spec's single-value JSON keyed by field ID, with `long` values as strings.
 
+## Scope
+
+Field IDs in nested types: a struct, a list and a map, in four rows that hold
+them populated, null, empty, and holding a null.
+
+Struct fields, list elements, and map keys and values each get their own field
+IDs, so between them the three types use every kind of nested ID a schema
+assigns, and a reader must resolve each by ID rather than by name or position.
+The rows separate the states that Parquet's three-level lists and maps encode
+differently: a populated container, a null container, an empty list and map, and
+a list element and a map value that are null. The struct's fields are required,
+so the struct itself is its only optional level. Partitioning, deletes and the
+breadth of primitive types are left to other tables.
+
 ## Input
 
 ```json

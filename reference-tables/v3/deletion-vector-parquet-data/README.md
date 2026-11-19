@@ -25,6 +25,18 @@ each holding its rows, written in the spec's single-value JSON keyed by field ID
 with `long` values as strings. The second commit adds one deletion vector for the
 named data file, setting the listed row positions, also written as strings.
 
+## Scope
+
+Deletion vectors: one append of two data files, then a deletion vector that
+deletes positions 0 and 3 of the first file only.
+
+Two data files are needed to show that a deletion vector applies only to the
+file it references: a reader that applied it to every file would also drop rows
+of the second. The deleted positions are the first row and an interior one, so
+neither a prefix nor a contiguous range explains the result, and a null survives
+in one of the remaining rows. Position delete files and equality delete files
+are left out; each would need its own table.
+
 ## Input
 
 ```json

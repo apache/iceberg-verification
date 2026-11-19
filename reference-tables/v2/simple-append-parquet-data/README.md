@@ -23,6 +23,20 @@ Input to `reference-tables/GenerateTables.java`. The schema and partition spec a
 the spec's JSON forms. Each commit appends one data file holding its rows, written
 in the spec's single-value JSON keyed by field ID, with `long` values as strings.
 
+## Scope
+
+The baseline every reader should pass: two appends to an unpartitioned v2 table,
+four rows, with a flat schema of `long`, `string` and `timestamptz`.
+
+The three types exist in every format version and cover the shapes most columns
+take: a fixed-width integer, a variable-length UTF-8 value, and a logical type
+carrying an annotation. Two appends give the table two snapshots and two
+manifests, so a scan at each snapshot goes through the manifest list rather than
+a single file. The one null, in `data` of the last row, checks that an optional
+column reads back as null. Partitioning, nested and other primitive types,
+deletes and schema changes are left to other tables, so that a failure here
+points at basic scan planning.
+
 ## Input
 
 ```json
