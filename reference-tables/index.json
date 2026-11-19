@@ -47,6 +47,14 @@
       "data-file-format": "parquet",
       "metadata": "v3/initial-default-parquet-data/metadata/v5.metadata.json",
       "description": "A required int added with an initial-default (42) whose write-default is then changed (10), an optional string added with an initial-default (\"none\"), and an optional string added without a default, after the first append. Two snapshots, four rows; rows written before the change read the initial-defaults and null."
+    },
+    {
+      "name": "v3/row-lineage-parquet-data",
+      "format-version": 3,
+      "written-by": "Iceberg Java 1.11.0",
+      "data-file-format": "parquet",
+      "metadata": "v3/row-lineage-parquet-data/metadata/v4.metadata.json",
+      "description": "Row lineage. Two appends assign row IDs by inheritance; an overwrite then writes some row IDs and sequence numbers explicitly and leaves others null."
     }
   ]
 }
