@@ -234,8 +234,9 @@ its `initial-default`, less the positions any deletion vector that applies to
 it deletes. The rows of `v3/deletion-vector-parquet-data` were instead derived
 from its Input, and a PyIceberg 0.12.0 scan returns the same rows. The rows of
 `v2/primitive-types-parquet-data` were also derived from its Input, then checked
-against the same read with no Iceberg library and against scans with PyIceberg,
-Iceberg Java, iceberg-go and iceberg-rust.
+against the same read with no Iceberg library and against scans with PyIceberg
+0.12.0, Iceberg Java 1.11.0 and 1.12.0, iceberg-go a9e2cc3 and iceberg-rust
+0.11.0.
 
 ## Procedure
 

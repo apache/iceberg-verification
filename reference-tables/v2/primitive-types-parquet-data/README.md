@@ -24,13 +24,16 @@ the spec's JSON forms. The one commit appends one data file holding its rows,
 written in the spec's single-value JSON keyed by field ID, with `long` values as
 strings.
 
+## Scope
+
 The table holds one column of every v1 and v2 primitive type. The three decimal
 columns use each of the Parquet physical types the spec maps a decimal to:
 `int32` for precision up to 9, `int64` up to 18, and `fixed_len_byte_array`
 otherwise. A reader that decodes only one of them fails on the others. The
-`timestamp` and `timestamptz` columns differ only in the `TIMESTAMP_MICROS`
-annotation's `isAdjustedToUTC` flag, so a reader that ignores the flag returns
-one of them with the wrong type, or shifted by its local zone.
+`timestamp` and `timestamptz` columns hold the same micros and differ only in
+the `TIMESTAMP_MICROS` annotation's `isAdjustedToUTC` flag, so a reader that
+takes the type from that annotation and ignores the flag returns one of them
+with the wrong type, or shifted by its local zone when run outside UTC.
 
 Row 1 holds typical values, except that `int_col` and `long_col` hold their
 maxima and `time_col` holds `00:00:00`. Row 2 holds boundary values: the int and
