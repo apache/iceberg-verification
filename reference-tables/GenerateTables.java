@@ -29,13 +29,17 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.IcebergBuild;
@@ -65,6 +69,16 @@ import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.JsonUtil;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.SimpleGroupFactory;
+import org.apache.parquet.hadoop.ParquetFileWriter;
+import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.example.ExampleParquetWriter;
+import org.apache.parquet.schema.GroupType;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
+import org.apache.parquet.schema.Type.Repetition;
 
 /**
  * Writes reference tables from the Input block in each table's README.md.
@@ -131,6 +145,13 @@ public class GenerateTables {
 
     Map<String, String> props = new HashMap<>();
     props.put(TableProperties.FORMAT_VERSION, String.valueOf(formatVersion));
+    if (input.has("properties")) {
+      // a value that is not a string, such as a name mapping, is written as its compact JSON
+      for (Map.Entry<String, JsonNode> e : input.get("properties").properties()) {
+        JsonNode value = e.getValue();
+        props.put(e.getKey(), value.isTextual() ? value.textValue() : value.toString());
+      }
+    }
     Table table = tables.create(schema, spec, props, SENTINEL + "/" + name);
 
     for (JsonNode commit : input.get("commits")) {
@@ -144,6 +165,11 @@ public class GenerateTables {
       }
       if (commit.has("schema-updates")) {
         updateSchema(table, commit.get("schema-updates"));
+        continue;
+      }
+      if (commit.has("file-schema")) {
+        DataFile file = writeWithFileSchema(table, commit);
+        table.newAppend().appendFile(file).commit();
         continue;
       }
       List<Record> records = new ArrayList<>();
@@ -278,6 +304,190 @@ public class GenerateTables {
       }
     }
     return writer.toDataFile();
+  }
+
+  /**
+   * Writes a data file whose own schema differs from the table's, with parquet-mr rather than
+   * Iceberg's writer, so that the file can carry column names, column order and field IDs the table
+   * schema does not. The file schema is given in the spec's JSON form. Its field IDs key the rows
+   * and are written to the file, except those listed in {@code without-field-ids}, which are
+   * written with no field ID at all. The data file entry carries the record count and no column
+   * metrics, since metrics are keyed by field ID.
+   */
+  static DataFile writeWithFileSchema(Table table, JsonNode commit) throws IOException {
+    if (table.spec().isPartitioned()) {
+      throw new IllegalArgumentException("file-schema is supported for unpartitioned tables only");
+    }
+    Schema fileSchema = SchemaParser.fromJson(commit.get("file-schema"));
+    Set<Integer> withoutIds = new HashSet<>();
+    if (commit.has("without-field-ids")) {
+      for (JsonNode id : commit.get("without-field-ids")) {
+        withoutIds.add(id.intValue());
+      }
+    }
+
+    List<org.apache.parquet.schema.Type> columns = new ArrayList<>();
+    for (Types.NestedField field : fileSchema.columns()) {
+      columns.add(parquetType(field, withoutIds));
+    }
+    MessageType message = new MessageType("table", columns);
+
+    String location = table.location() + "/data/" + commit.get("data-file").asText() + ".parquet";
+    SimpleGroupFactory groups = new SimpleGroupFactory(message);
+    long count = 0;
+    try (ParquetWriter<Group> writer =
+        ExampleParquetWriter.builder(new org.apache.hadoop.fs.Path(location))
+            .withConf(new Configuration())
+            .withType(message)
+            .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
+            .build()) {
+      for (JsonNode row : commit.get("rows")) {
+        Group group = groups.newGroup();
+        fill(group, fileSchema.asStruct(), record(fileSchema.asStruct(), row));
+        writer.write(group);
+        count += 1;
+      }
+    }
+
+    return DataFiles.builder(table.spec())
+        .withInputFile(table.io().newInputFile(location))
+        .withFormat(FileFormat.PARQUET)
+        .withRecordCount(count)
+        .build();
+  }
+
+  /** A field as a Parquet type, with three-level lists and maps as the spec's Parquet mapping. */
+  static org.apache.parquet.schema.Type parquetType(
+      Types.NestedField field, Set<Integer> withoutIds) {
+    Repetition repetition = field.isOptional() ? Repetition.OPTIONAL : Repetition.REQUIRED;
+    Type type = field.type();
+    org.apache.parquet.schema.Type result;
+    switch (type.typeId()) {
+      case LONG:
+        result =
+            org.apache.parquet.schema.Types.primitive(PrimitiveTypeName.INT64, repetition)
+                .named(field.name());
+        break;
+      case INTEGER:
+        result =
+            org.apache.parquet.schema.Types.primitive(PrimitiveTypeName.INT32, repetition)
+                .named(field.name());
+        break;
+      case DOUBLE:
+        result =
+            org.apache.parquet.schema.Types.primitive(PrimitiveTypeName.DOUBLE, repetition)
+                .named(field.name());
+        break;
+      case STRING:
+        result =
+            org.apache.parquet.schema.Types.primitive(PrimitiveTypeName.BINARY, repetition)
+                .as(LogicalTypeAnnotation.stringType())
+                .named(field.name());
+        break;
+      case STRUCT:
+        {
+          List<org.apache.parquet.schema.Type> fields = new ArrayList<>();
+          for (Types.NestedField child : type.asStructType().fields()) {
+            fields.add(parquetType(child, withoutIds));
+          }
+          result = new GroupType(repetition, field.name(), fields);
+          break;
+        }
+      case LIST:
+        {
+          Types.NestedField element = type.asListType().fields().get(0);
+          result =
+              org.apache.parquet.schema.Types.buildGroup(repetition)
+                  .as(LogicalTypeAnnotation.listType())
+                  .addField(
+                      new GroupType(
+                          Repetition.REPEATED,
+                          "list",
+                          parquetType(rename(element, "element"), withoutIds)))
+                  .named(field.name());
+          break;
+        }
+      case MAP:
+        {
+          Types.NestedField key = type.asMapType().fields().get(0);
+          Types.NestedField value = type.asMapType().fields().get(1);
+          result =
+              org.apache.parquet.schema.Types.buildGroup(repetition)
+                  .as(LogicalTypeAnnotation.mapType())
+                  .addField(
+                      new GroupType(
+                          Repetition.REPEATED,
+                          "key_value",
+                          parquetType(rename(key, "key"), withoutIds),
+                          parquetType(rename(value, "value"), withoutIds)))
+                  .named(field.name());
+          break;
+        }
+      default:
+        throw new UnsupportedOperationException("No Parquet type for " + type);
+    }
+    return withoutIds.contains(field.fieldId()) ? result : result.withId(field.fieldId());
+  }
+
+  static Types.NestedField rename(Types.NestedField field, String name) {
+    return Types.NestedField.from(field).withName(name).build();
+  }
+
+  /** Copies a record into a Parquet group of the same shape. A null value is left unset. */
+  static void fill(Group group, Types.StructType struct, Record record) {
+    List<Types.NestedField> fields = struct.fields();
+    for (int i = 0; i < fields.size(); i += 1) {
+      Types.NestedField field = fields.get(i);
+      Object value = record.get(i);
+      if (value != null) {
+        add(group, field.name(), field.type(), value);
+      }
+    }
+  }
+
+  static void add(Group group, String name, Type type, Object value) {
+    switch (type.typeId()) {
+      case LONG:
+        group.add(name, (Long) value);
+        return;
+      case INTEGER:
+        group.add(name, (Integer) value);
+        return;
+      case DOUBLE:
+        group.add(name, (Double) value);
+        return;
+      case STRING:
+        group.add(name, (String) value);
+        return;
+      case STRUCT:
+        fill(group.addGroup(name), type.asStructType(), (Record) value);
+        return;
+      case LIST:
+        {
+          Group list = group.addGroup(name);
+          for (Object element : (List<?>) value) {
+            Group entry = list.addGroup("list");
+            if (element != null) {
+              add(entry, "element", type.asListType().elementType(), element);
+            }
+          }
+          return;
+        }
+      case MAP:
+        {
+          Group map = group.addGroup(name);
+          for (Map.Entry<?, ?> e : ((Map<?, ?>) value).entrySet()) {
+            Group entry = map.addGroup("key_value");
+            add(entry, "key", type.asMapType().keyType(), e.getKey());
+            if (e.getValue() != null) {
+              add(entry, "value", type.asMapType().valueType(), e.getValue());
+            }
+          }
+          return;
+        }
+      default:
+        throw new UnsupportedOperationException("No Parquet value for " + type);
+    }
   }
 
   // input values, in the spec's single-value JSON keyed by field id, with long values as strings

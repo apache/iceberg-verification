@@ -34,7 +34,7 @@ exactly the rows in the table's `expected/scan.json`. Bytes are not compared.
 
 ## Size
 
-A table should stay under 100 KB. The six here are 16 KB to 31 KB.
+A table should stay under 100 KB. The seven here are 16 KB to 31 KB.
 
 Size tracks commit count, and almost nothing else. A commit costs roughly 12 to
 14 KB, most of it the manifest and manifest list it produces. Rows are close to
@@ -174,6 +174,18 @@ symlink, and the consumer symlink is removed first. The generated `data/` and
 `metadata/` directories then replace the table's own, which are removed first so
 no earlier UUID-named files remain.
 
+The Input may also give `properties`, table properties set when the table is
+created. A value that is not a JSON string, such as a name mapping, is set as its
+compact JSON. A commit may give a `file-schema`, in the spec's schema JSON, for a
+data file whose own schema differs from the table's: other column names, another
+column order, fields the table has and the file lacks. Its rows are keyed by the
+file schema's field IDs, and the file carries those IDs except the ones listed in
+`without-field-ids`, which it writes with no field ID. Lists and maps take the
+three-level form the spec's Parquet mapping gives. Such a file is written with
+parquet-mr's example writer rather than Iceberg's, uncompressed, and its manifest
+entry carries the record count and no column metrics, because those are keyed by
+field ID. This is supported for unpartitioned tables only.
+
 Data files are GZIP-compressed although each table sets
 `write.parquet.compression-codec` to `zstd`, because the generator builds the
 Parquet writer without the table's properties.
@@ -264,7 +276,9 @@ list, each manifest's entries not marked `DELETED`, and the rows of each data
 file those entries name, read by field ID with any field a file lacks filled from
 its `initial-default`, less the positions any deletion vector that applies to
 it deletes. The rows of `v3/deletion-vector-parquet-data` were instead derived
-from its Input, and a PyIceberg 0.12.0 scan returns the same rows.
+from its Input, and a PyIceberg 0.12.0 scan returns the same rows. The rows of
+`v2/partial-field-ids-parquet-data` were also derived from its Input, as its
+`README.md` describes, and checked against the same kind of read.
 
 ## Procedure
 
