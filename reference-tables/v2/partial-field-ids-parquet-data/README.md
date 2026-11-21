@@ -50,52 +50,47 @@ file.
 
 Partial field IDs in a Parquet data file: every top-level column and the struct's
 fields carry IDs, while the list element, map key and map value do not, with a
-name mapping that names the physical columns. The open case is how a reader
-resolves the ID-less fields, so the table has no `expected/scan.json` until the
-question on dev@iceberg.apache.org is settled. The values the spec already fixes
-are stated in "What the spec already fixes".
+name mapping that names the physical columns. The file is ID-bearing at several
+depths, so the name mapping is not used at all and the ID-less nested fields are
+absent. The table is unpartitioned and v2, so there is no identity-partition
+fallback and no default values: the absent fields read as null. Partition
+metadata, defaults, other file formats and reads that fail on absent fields are
+left to other tables.
 
-## Waiting on
+## Assertion
 
-This table has no `expected/scan.json` and no `index.json` entry yet. The spec
-does not settle how a reader resolves the fields of this file that carry no field
-ID, and the question is under discussion on dev@iceberg.apache.org in
-[Name mapping for data files that carry only some field IDs](https://lists.apache.org/thread/vgxtsjvcfhjq06lcg3mnstp2fyglgzbd).
+Under [Column Projection](https://iceberg.apache.org/spec/#column-projection),
+readers check the full file schema before projection. Because this file carries
+field IDs at any depth, readers must use stored IDs for the whole file;
+`schema.name-mapping.default` applies only to a data file with no field IDs. A
+list or map whose element, key or value has no ID is absent as a whole, and
+absent fields resolve through the unchanged rules: partition metadata,
+`initial-default`, then null. Here that means fields `4` (`tags`), `5` (`props`)
+and `6` (`added`) are null in every row.
 
-Two sentences of the spec's
-[Column Projection](https://iceberg.apache.org/spec/#column-projection) section
-bear on it. One says to use `schema.name-mapping.default` "to map field id to
-columns without field id". The other says the mappings provide fallback field IDs
-"when a data file does not contain field id information". This file contains
-field ID information, and three of its fields have none.
+`expected/scan.json` records the full scan of the only snapshot, keyed by field
+ID: every row has fields `1`, `2`, `3`, `7` and `8` read from columns `c1`, `c2`,
+`c3`, `c3.c7` and `c3.c8` by ID, and `4`, `5` and `6` as explicit null. `long`
+values are strings, following the repository convention. The physical column
+order differs from the schema's, and the names of the ID-carrying columns are
+absent from the name mapping, so neither name nor position can produce these
+values.
 
-The open question is what a read of fields 4 and 5 returns. Read field by field,
-under the first sentence, the ID-less element, key and value take their IDs from
-the mapping. Read file by file, under the second, the mapping does not apply to
-this file, and the question becomes what a list or map whose element, key or
-value has no field ID reads as: a null list or map, a failure, or a behavior the
-spec leaves unspecified.
+Resolution is independent of projection: the file is ID-bearing whether or not
+the projection includes the ID-less fields, so a scan of only the ID-carrying
+fields returns the same values as the full scan. Reference tables have no format
+for a partial projection, so this is stated here rather than asserted in a
+separate file.
 
-The expected values are written once the thread settles that.
+## Spec basis
 
-## What the spec already fixes
-
-Unless the answer is that a file like this one cannot be read at all, the spec
-fixes these values for a scan of this table that does not project fields 4 and 5.
-They are stated here rather than as a partial `expected/scan.json`, because the
-reference tables have no format for a scan that covers only some fields.
-
-- Fields 1, 2, 3, 7 and 8 are read from columns `c1`, `c2`, `c3`, `c3.c7` and
-  `c3.c8` by their field IDs, as the rows in the Input give them. Columns are
-  selected by field ID. Under the first sentence above the mapping applies only
-  to columns without a field ID, and under the second it does not apply to a file
-  that carries field IDs, so neither reading lets it resolve these columns.
-- Field 6 reads as `null` in every row. The table is unpartitioned, the file has
-  no column for it, and it has no `initial-default`. The mapping names it `added`,
-  and the file has no column of that name.
-
-A projection of one of these columns, or of these columns in another order,
-selects the same values by field ID.
+The reading was settled on dev@iceberg.apache.org in
+[Name mapping for data files that carry only some field IDs](https://lists.apache.org/thread/tct2yp45ytsb6dqw1tq7b8gnfnp7jndo)
+and written into the spec in
+[apache/iceberg#19037](https://github.com/apache/iceberg/pull/19037). The two
+points pinned there are that a missing ID in an ID-bearing file makes the field
+absent, resolved as null here rather than by the name mapping, and that whether
+an ID'd field can be read does not depend on other fields lacking IDs.
 
 ## Input
 
