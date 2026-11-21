@@ -48,18 +48,19 @@ file.
 
 ## Scope
 
-Partial field IDs in a Parquet data file: every top-level column and the struct's
-fields carry IDs, while the list element, map key and map value do not, with a
-name mapping that names the physical columns. The file is ID-bearing at several
-depths, so the name mapping is not used at all and the ID-less nested fields are
-absent. The table is unpartitioned and v2, so there is no identity-partition
-fallback and no default values: the absent fields read as null. Partition
-metadata, defaults, other file formats and reads that fail on absent fields are
-left to other tables.
+Partial field IDs in a Parquet data file: every top-level column and the
+struct's fields carry IDs, while the list element, map key and map value do not,
+and the table sets a name mapping that lists the table's field names. The file
+is ID-bearing at several depths, so the name mapping is not used at all and the
+ID-less nested fields are absent. The table is unpartitioned and v2, so there is
+no identity-partition fallback and no default values: the absent fields read as
+null. Partition metadata, defaults, other file formats and reads that fail on
+absent fields are left to other tables.
 
 ## Assertion
 
-Under [Column Projection](https://iceberg.apache.org/spec/#column-projection),
+Under [Column Projection](https://iceberg.apache.org/spec/#column-projection) as
+[apache/iceberg#19037](https://github.com/apache/iceberg/pull/19037) words it,
 readers check the full file schema before projection. Because this file carries
 field IDs at any depth, readers must use stored IDs for the whole file;
 `schema.name-mapping.default` applies only to a data file with no field IDs. A
@@ -84,13 +85,18 @@ separate file.
 
 ## Spec basis
 
-The reading was settled on dev@iceberg.apache.org in
+The reading was discussed on dev@iceberg.apache.org in
 [Name mapping for data files that carry only some field IDs](https://lists.apache.org/thread/tct2yp45ytsb6dqw1tq7b8gnfnp7jndo)
-and written into the spec in
-[apache/iceberg#19037](https://github.com/apache/iceberg/pull/19037). The two
-points pinned there are that a missing ID in an ID-bearing file makes the field
-absent, resolved as null here rather than by the name mapping, and that whether
-an ID'd field can be read does not depend on other fields lacking IDs.
+and is proposed as Column Projection wording in
+[apache/iceberg#19037](https://github.com/apache/iceberg/pull/19037). The
+expected values follow that wording: readers check the full file schema for field
+IDs before projection, and in a file that has any, a field without an ID, a list
+missing its element ID and a map missing its key or value ID are absent. The
+published Column Projection text predates it.
+
+The rows were derived from the Input under that wording, not from a scan, and
+were checked against a read of the data file with no Iceberg library that
+resolves each column by its Parquet field ID and treats those fields as absent.
 
 ## Input
 

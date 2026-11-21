@@ -51,7 +51,7 @@
     {
       "name": "v2/partial-field-ids-parquet-data",
       "format-version": 2,
-      "written-by": "Iceberg Java 1.11.0, reference-tables generator (parquet-mr data file)",
+      "written-by": "Iceberg Java 1.11.0",
       "data-file-format": "parquet",
       "metadata": "v2/partial-field-ids-parquet-data/metadata/v2.metadata.json",
       "description": "Name mapping set, and one Parquet data file with field IDs on its top-level columns and struct fields but not on its list element, map key or map value. One snapshot, three rows; the list, map and absent column read as null."
