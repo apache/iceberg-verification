@@ -50,7 +50,11 @@ Consumers subscribe by subdirectory:
   taking modulo `N`.
 - `truncate/` - integer, long, decimal, string, and binary truncation.
 - `year/`, `month/`, `day/`, and `hour/` - temporal ordinals from the Unix
-  epoch. `day` expected values are logical dates.
+  epoch. `day` expected values are logical dates. A pre-epoch value maps to the
+  period that contains it, so `1969-12-31T23:59:59.999999` is hour `-1` and
+  `1968-12-31` is year `-2`. The specification leaves the direction of negative
+  rounding open; these cases follow the floor semantics that Java's `DateTimeUtil`
+  also uses, so rounding toward zero fails them.
 - `void/` - "Always produces `null`."
 
 The subdirectories are independent subscription boundaries. For example, an
@@ -147,11 +151,14 @@ the specified sign-bit rule. The values were independently cross-checked
 against Apache Iceberg Java transform tests and PyIceberg transform tests. Those
 implementations are cross-checks, not the source of truth.
 
-Run `make validate` to recompute every value in `bucket/cases.json` from
-Appendix B's type encodings and Murmur3 x86 32-bit hash. The calculation in
+Run `make validate` to recompute every `bucket`, `truncate`, `year`, `month`,
+`day`, and `hour` value from its input. Bucket values come from Appendix B's
+type encodings and Murmur3 x86 32-bit hash; truncate values follow Truncate
+Transform Details, with a positive remainder; temporal values count whole
+periods from the Unix epoch, rounding down. The calculation in
 `dev/validate-fixtures.py` uses only Python's standard library. The validator
-reads fixtures without changing them and fails if a value differs. `make check`
-runs the validator too.
+reads fixtures without changing them and fails if a value differs, labeling
+the case and value index. `make check` runs the validator too.
 Appendix B labels the date operation `hashInt(days)`, but its published date
 hash vector uses the 8-byte `hashLong(days)` encoding, consistent with its
 int/long hash rule; the checker follows the published vector.
