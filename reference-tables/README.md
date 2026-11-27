@@ -20,8 +20,8 @@
 # Reference tables
 
 This directory holds complete Iceberg tables: metadata, manifest lists,
-manifests, Parquet data files, and Puffin deletion vectors. Tables are grouped
-by format version.
+manifests, Parquet data files, Parquet position delete files, and Puffin
+deletion vectors. Tables are grouped by format version.
 
 ## Assertion
 
@@ -34,7 +34,7 @@ exactly the rows in the table's `expected/scan.json`. Bytes are not compared.
 
 ## Size
 
-A table should stay under 100 KB. The six here are 16 KB to 31 KB.
+A table should stay under 100 KB. The seven here are 16 KB to 65 KB.
 
 Size tracks commit count, and almost nothing else. A commit costs roughly 12 to
 14 KB, most of it the manifest and manifest list it produces. Rows are close to
@@ -50,8 +50,9 @@ its pull request.
 Prior to v4 the spec requires every path field to be fully qualified, so each
 table carries an absolute prefix in `location`, every `manifest-list`,
 `manifest_path`, `file_path` and `referenced_data_file`, every `metadata-log`
-entry, and a deletion vector's `referenced-data-file` Puffin blob property. That
-prefix is the sentinel root:
+entry, the `file_path` column of every position delete file, and a deletion
+vector's `referenced-data-file` Puffin blob property. That prefix is the sentinel
+root:
 
 ```
 /tmp/iceberg-verification/reference-tables/<format-version>/<table-name>
@@ -156,9 +157,15 @@ table apart: it states the reader behavior the table exercises, and what it
 deliberately leaves out and why. The Input section gives the table's format
 version, schema, partition spec, and each commit: the rows of one data file, the
 data files of one append, the row positions of one data file that a deletion
-vector deletes, or the updates of a schema change. The generator reads that
-input, creates the table with `HadoopTables`, and commits each in turn, writing
-a deletion vector with Iceberg's `BaseDVFileWriter` in a row delta. It writes
+vector deletes, the row positions of one or more data files that a position
+delete file deletes, optionally with data files added in the same commit, or the
+updates of a schema change. The generator reads that input, creates the table
+with `HadoopTables`, and commits each in turn, writing a deletion vector with
+Iceberg's `BaseDVFileWriter` in a row delta, and a position delete file with
+Iceberg's Parquet position delete writer in a row delta that also adds the
+commit's data files. Iceberg Java 1.11.0 does not set a position delete file's
+`referenced_data_file`, so the generator sets it when every delete is in one
+data file and leaves it null otherwise. It writes
 each table directly at the sentinel root, so the absolute paths are correct as
 written and nothing is rewritten. After writing, it prunes earlier
 `metadata.json` files and deletes Hadoop's `.crc` sidecars and
@@ -174,9 +181,9 @@ symlink, and the consumer symlink is removed first. The generated `data/` and
 `metadata/` directories then replace the table's own, which are removed first so
 no earlier UUID-named files remain.
 
-Data files are GZIP-compressed although each table sets
-`write.parquet.compression-codec` to `zstd`, because the generator builds the
-Parquet writer without the table's properties.
+Data files and position delete files are GZIP-compressed although each table
+sets `write.parquet.compression-codec` to `zstd`, because the generator builds
+the Parquet writers without the table's properties.
 
 ## Naming
 
@@ -264,7 +271,12 @@ list, each manifest's entries not marked `DELETED`, and the rows of each data
 file those entries name, read by field ID with any field a file lacks filled from
 its `initial-default`, less the positions any deletion vector that applies to
 it deletes. The rows of `v3/deletion-vector-parquet-data` were instead derived
-from its Input, and a PyIceberg 0.12.0 scan returns the same rows.
+from its Input, and a PyIceberg 0.12.0 scan returns the same rows. The rows of
+`v2/position-deletes-parquet-data` were also derived from its Input, by the
+spec's scope rule for position delete files, then checked against the same read
+with no Iceberg library, applying position delete files by that rule, and
+against scans with PyIceberg 0.12.0 and 7864d4c, Iceberg Java 1.11.0 and 1.12.0,
+and iceberg-go b9a9bd9.
 
 ## Procedure
 

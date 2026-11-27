@@ -47,6 +47,14 @@
       "data-file-format": "parquet",
       "metadata": "v3/initial-default-parquet-data/metadata/v5.metadata.json",
       "description": "A required int added with an initial-default (42) whose write-default is then changed (10), an optional string added with an initial-default (\"none\"), and an optional string added without a default, after the first append. Two snapshots, four rows; rows written before the change read the initial-defaults and null."
+    },
+    {
+      "name": "v2/position-deletes-parquet-data",
+      "format-version": 2,
+      "written-by": "Iceberg Java 1.11.0",
+      "data-file-format": "parquet",
+      "metadata": "v2/position-deletes-parquet-data/metadata/v5.metadata.json",
+      "description": "Flat schema of long, string and int. One append of three data files, then three Parquet position delete files: one for a single file, one covering two files with no referenced data file, and one committed with the data file it deletes from."
     }
   ]
 }
