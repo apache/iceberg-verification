@@ -445,6 +445,9 @@ def temporal_value(transform, source_type, value):
             raise ValueError("timestamp zone must match source type")
         if match[2] and len(match[2]) > (9 if source_type.endswith("_ns") else 6):
             raise ValueError("timestamp exceeds source type precision")
+        # Floor division is unambiguous for hour and day; epoch_units refuses the
+        # same negative sub-microsecond input for bucket, where the spec does not
+        # say how to round to microseconds before hashing.
         nanoseconds = epoch_nanos(value)
         hours = nanoseconds // 3_600_000_000_000
         day = date(1970, 1, 1) + timedelta(days=nanoseconds // 86_400_000_000_000)
@@ -459,22 +462,24 @@ def temporal_value(transform, source_type, value):
     raise ValueError(f"unsupported {transform} source type: {source_type}")
 
 
+UNCHECKED = object()
+
+
 def expected_value(transform, source_type, value):
-    """Recompute a transform result from the spec, or None for an unchecked transform."""
+    """Recompute a transform result from the spec, or UNCHECKED for a transform not recomputed."""
+    bucket = re.fullmatch(r"bucket\[([1-9][0-9]*)\]", transform)
+    truncate = re.fullmatch(r"truncate\[([1-9][0-9]*)\]", transform)
+    if _transform_family(transform) not in ("bucket", "truncate", "year", "month", "day", "hour"):
+        return UNCHECKED
+    if not (bucket or truncate or transform in ("year", "month", "day", "hour")):
+        raise ValueError(f"malformed transform {json.dumps(transform)}")
     if value is None:
         return None
-    bucket = re.fullmatch(r"bucket\[([1-9][0-9]*)\]", transform)
     if bucket:
         return bucket_value(int(bucket[1]), source_type, value)
-    truncate = re.fullmatch(r"truncate\[([1-9][0-9]*)\]", transform)
     if truncate:
         return truncate_value(int(truncate[1]), source_type, value)
-    if transform in ("year", "month", "day", "hour"):
-        return temporal_value(transform, source_type, value)
-    return None
-
-
-RECOMPUTED = re.compile(r"^(bucket\[|truncate\[|year$|month$|day$|hour$)")
+    return temporal_value(transform, source_type, value)
 
 
 def _computed_value_errors(path, doc):
@@ -483,8 +488,6 @@ def _computed_value_errors(path, doc):
     errors = []
     for case_index, case in enumerate(doc["cases"]):
         transform = case["input"]["transform"]
-        if not RECOMPUTED.match(transform):
-            continue
         source_type = case["input"]["source_type"]
         values = case["input"]["values"]
         expected = case["decoded"]["values"]
@@ -494,6 +497,8 @@ def _computed_value_errors(path, doc):
             except (TypeError, ValueError, OverflowError, UnicodeError, struct.error) as exc:
                 errors.append(f"{path}: cases/{case_index}/input/values/{index}: {exc}")
                 continue
+            if actual is UNCHECKED:
+                break
             if not _json_scalar_equal(actual, wanted):
                 errors.append(
                     f"{path}: cases/{case_index}/decoded/values/{index}: "

@@ -52,7 +52,9 @@ Consumers subscribe by subdirectory:
 - `year/`, `month/`, `day/`, and `hour/` - temporal ordinals from the Unix
   epoch. `day` expected values are logical dates. A pre-epoch value maps to the
   period that contains it, so `1969-12-31T23:59:59.999999` is hour `-1` and
-  `1968-12-31` is year `-2`; rounding toward zero fails these cases.
+  `1968-12-31` is year `-2`. The specification leaves the direction of negative
+  rounding open; these cases follow the floor semantics that Java's `DateTimeUtil`
+  also uses, so rounding toward zero fails them.
 - `void/` - "Always produces `null`."
 
 The subdirectories are independent subscription boundaries. For example, an
