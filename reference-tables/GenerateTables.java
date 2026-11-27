@@ -36,9 +36,12 @@ import java.util.stream.Stream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.IcebergBuild;
+import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
@@ -54,6 +57,8 @@ import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.deletes.BaseDVFileWriter;
+import org.apache.iceberg.deletes.PositionDelete;
+import org.apache.iceberg.deletes.PositionDeleteWriter;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.expressions.Literal;
 import org.apache.iceberg.hadoop.HadoopTables;
@@ -64,6 +69,7 @@ import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.CharSequenceSet;
 import org.apache.iceberg.util.JsonUtil;
 
 /**
@@ -142,6 +148,10 @@ public class GenerateTables {
         addDeletionVector(table, commit.get("deletion-vector"));
         continue;
       }
+      if (commit.has("position-deletes")) {
+        addPositionDeletes(table, commit.get("position-deletes"));
+        continue;
+      }
       if (commit.has("schema-updates")) {
         updateSchema(table, commit.get("schema-updates"));
         continue;
@@ -205,6 +215,96 @@ public class GenerateTables {
     RowDelta delta = table.newRowDelta().validateDataFilesExist(result.referencedDataFiles());
     result.deleteFiles().forEach(delta::addDeletes);
     delta.commit();
+  }
+
+  /**
+   * One Parquet position delete file for the given row positions of one or more data files, in a
+   * row delta together with any data files it adds, so their deletes share its sequence number.
+   */
+  static void addPositionDeletes(Table table, JsonNode pd) throws IOException {
+    if (((HasTableOperations) table).operations().current().formatVersion() != 2) {
+      throw new IllegalArgumentException("Position delete files may be added to v2 tables only");
+    }
+
+    Map<String, DataFile> live = new HashMap<>();
+    try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
+      for (FileScanTask task : tasks) {
+        live.put(tag(task.file()), task.file());
+      }
+    }
+
+    RowDelta delta = table.newRowDelta();
+    if (pd.has("data-files")) {
+      for (JsonNode file : pd.get("data-files")) {
+        List<Record> records = new ArrayList<>();
+        for (JsonNode row : file.get("rows")) {
+          records.add(record(table.schema().asStruct(), row));
+        }
+        DataFile added = write(table, file.get("data-file").asText(), records);
+        live.put(tag(added), added);
+        delta.addRows(added);
+      }
+    }
+
+    String location = table.location() + "/data/" + pd.get("file").asText() + ".parquet";
+    PositionDeleteWriter<Record> writer =
+        Parquet.writeDeletes(table.io().newOutputFile(location))
+            .withSpec(table.spec())
+            .metricsConfig(MetricsConfig.forPositionDelete(table))
+            .overwrite()
+            .buildPositionWriter();
+
+    // The spec requires entries sorted by file_path, then pos. They are written in Input order, so
+    // an Input that is not sorted is refused rather than reordered.
+    PositionDelete<Record> entry = PositionDelete.create();
+    String lastPath = null;
+    long lastPos = -1;
+    try (PositionDeleteWriter<Record> open = writer) {
+      for (JsonNode node : pd.get("deletes")) {
+        String tag = node.get("data-file").asText();
+        DataFile target = live.get(tag);
+        if (target == null) {
+          throw new IllegalArgumentException("No live data file " + tag);
+        }
+        String path = target.location();
+        for (JsonNode p : node.get("positions")) {
+          long pos = Long.parseLong(p.asText());
+          if (pos < 0 || pos >= target.recordCount()) {
+            throw new IllegalArgumentException("Position " + pos + " is not a row of " + tag);
+          }
+          int order = lastPath == null ? 1 : path.compareTo(lastPath);
+          if (order == 0 && pos == lastPos) {
+            throw new IllegalArgumentException("Position " + pos + " of " + tag + " is repeated");
+          }
+          if (order < 0 || (order == 0 && pos < lastPos)) {
+            throw new IllegalArgumentException("Deletes are not sorted by file_path, then pos");
+          }
+          open.write(entry.set(path, pos));
+          lastPath = path;
+          lastPos = pos;
+        }
+      }
+    }
+
+    // Java 1.11 never sets referenced_data_file on a position delete file. The spec allows it
+    // when every delete is in one data file, so it is set then and left null otherwise.
+    DeleteFile deletes = writer.toDeleteFile();
+    CharSequenceSet referenced = writer.referencedDataFiles();
+    if (referenced.size() == 1) {
+      deletes =
+          FileMetadata.deleteFileBuilder(table.spec())
+              .copy(deletes)
+              .withReferencedDataFile(referenced.iterator().next())
+              .build();
+    }
+    delta.addDeletes(deletes).validateDataFilesExist(referenced).commit();
+  }
+
+  /** The Input's name for a data file, which write() puts at data/<tag>.parquet. */
+  static String tag(DataFile file) {
+    String location = file.location();
+    String name = location.substring(location.lastIndexOf('/') + 1);
+    return name.substring(0, name.length() - ".parquet".length());
   }
 
   /** One schema commit of add-column and update-default actions, with defaults as input values. */
